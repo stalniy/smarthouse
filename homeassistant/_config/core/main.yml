@@ -1,0 +1,25 @@
+group:
+  residents:
+    name: Residents
+    entities:
+      - person.serhii
+
+input_datetime: 
+  back_home_at:
+    name: Час повернення додому
+    icon: mdi:home-clock
+    has_date: true
+    has_time: true
+
+input_text:
+  serhii_phone_shortcut:
+    name: Сергій вдома?
+
+sensor:
+  - platform: template
+    sensors:
+      some_time_at_home_passed:
+        device_class: timestamp
+        value_template: "{{ (states('input_datetime.back_home_at') | as_datetime | as_local) + timedelta(minutes=10) }}"
+        
+automation: !include ./automations.yml

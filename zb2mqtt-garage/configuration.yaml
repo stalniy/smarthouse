@@ -1,0 +1,30 @@
+homeassistant: true
+permit_join: false
+frontend: true
+mqtt:
+  base_topic: zbgarage
+  server: mqtt://homeassistant.lan
+advanced:
+  pan_id: 6650
+  homeassistant_legacy_entity_attributes: false
+  legacy_api: false
+  legacy_availability_payload: false
+devices:
+  '0xa4c13839d09f599d':
+    friendly_name: garage_gates_power
+  '0xa4c1385bc5eff6a7':
+    friendly_name: garage_gates_bot_right
+  '0xa4c13819b8e35f59':
+    friendly_name: garage_gates_bot_left
+  '0xdc8e95fffe11b7d6':
+    friendly_name: garage_light_outside
+  '0x00124b002a65b1bd':
+    friendly_name: garage_gates_left_open
+  '0x00124b002a50f12b':
+    friendly_name: garage_gates_right_open
+  '0x187a3efffe006b28':
+    friendly_name: power_consumption
+device_options:
+  legacy: false
+external_converters:
+  - converters/SPM02.js

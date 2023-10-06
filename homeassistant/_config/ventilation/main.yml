@@ -1,0 +1,19 @@
+automation: !include ./automations.yml
+script: !include ./scripts.yml
+
+input_datetime:
+  kitchen_fan_turn_off_at:
+    name: Вимкнути витяжку в кухні після включення
+    icon: mdi:fan-off
+    has_date: true
+    has_time: true
+  bathroom_fan_turn_on_at:
+    name: Ввімкнути вентиляцію у ваннах
+    icon: mdi:fan-clock
+    has_date: true
+    has_time: true
+  bathroom_fan_turn_off_at:
+    name: Вимкнути вентиляцію ваннах
+    icon: mdi:fan-off
+    has_date: true
+    has_time: true

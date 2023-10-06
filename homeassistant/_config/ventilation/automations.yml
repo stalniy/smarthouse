@@ -1,0 +1,174 @@
+- id: manage_bathroom_ventilation
+  alias: Керування вентиляцією у ванних кімнатах
+  trigger:
+    - id: schedule
+      entity_id:
+        - light.kid_bathroom
+        - light.master_bathroom
+      platform: state
+      variables:
+        fan_turn_on_at: "{{ now().timestamp() + 5 * 60 }}"
+        fan_turn_off_at: "{{ now().timestamp() + 30 * 60 }}"
+    - platform: time
+      at: input_datetime.bathroom_fan_turn_on_at
+      variables:
+        fan_command: turn_on
+    - platform: time
+      at: input_datetime.bathroom_fan_turn_off_at
+      variables:
+        fan_command: turn_off
+    - id: check_humidity
+      platform: time_pattern
+      hours: "/6"
+      variables:
+        fan_turn_off_at: "{{ now().timestamp() + 2 * 60 * 60 }}"
+  mode: restart
+  action:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ trigger.id == 'schedule' and trigger.to_state.state == 'on' }}"
+              alias: Schedule on
+          sequence:
+            - service: input_datetime.set_datetime
+              data:
+                entity_id: input_datetime.bathroom_fan_turn_off_at
+                timestamp: 1
+              alias: Reset turn off at
+            - condition: template
+              value_template: >-
+                {{ (states('input_datetime.bathroom_fan_turn_on_at') |
+                as_datetime).year == 1970 }}
+              alias: Turn on is not set
+            - condition: state
+              entity_id: switch.bathroom_fan
+              state: "off"
+            - service: input_datetime.set_datetime
+              data:
+                entity_id: input_datetime.bathroom_fan_turn_on_at
+                timestamp: "{{ fan_turn_on_at }}"
+              alias: Set turn on
+        - conditions:
+            - condition: template
+              value_template: >-
+                {{ trigger.id == "schedule" and trigger.to_state.state == "off"
+                }}
+              alias: Schedule off
+          sequence:
+            - condition: template
+              value_template: >-
+                {{ states('light.kid_bathroom') == "off" and
+                states('light.master_bathroom') == "off" }}
+              alias: All Bathroom light is off
+            - service: input_datetime.set_datetime
+              data:
+                entity_id: input_datetime.bathroom_fan_turn_on_at
+                timestamp: 1
+              alias: Reset turn on at
+            - condition: state
+              entity_id: switch.bathroom_fan
+              state: "on"
+            - service: input_datetime.set_datetime
+              data:
+                entity_id: input_datetime.bathroom_fan_turn_off_at
+                timestamp: "{{ fan_turn_off_at }}"
+              alias: Set turn off
+        - conditions:
+          - condition: template
+            value_template: >- 
+              {{ trigger.id == "check_humidity" }}
+          sequence:
+            - condition: template
+              value_template: >-
+                {% set humidity_states = [
+                  states('sensor.master_bathroom_climate_humidity'),
+                  states('sensor.kid_bathroom_climate_humidity'),
+                  states('sensor.master_bedroom_climate_humidity')
+                ]%}
+                {% set amount_of_sensors_with_humidity = humidity_states 
+                  | map('float') 
+                  | select('gt', 70) 
+                  | list 
+                  | count 
+                %}
+                {{ amount_of_sensors_with_humidity > 0 and 6 <= now().hour <= 21 }} 
+            - service: switch.turn_on
+              entity_id: switch.bathroom_fan
+              alias: Ввікнути вентиляцію
+            - service: input_datetime.set_datetime
+              data:
+                entity_id: input_datetime.bathroom_fan_turn_off_at
+                timestamp: "{{ fan_turn_off_at }}"
+              alias: schedule turn off
+
+      default:
+        - condition: template
+          value_template: | 
+            {% set wanted_state = 'off' if fan_command == 'turn_on' else 'on' %}
+            {{ states('switch.bathroom_fan') == wanted_state }}
+        - service_template: "switch.{{ fan_command }}"
+          entity_id: switch.bathroom_fan
+          alias: Ввікнути/Вимкнути вентиляцію
+        - condition: state
+          entity_id: switch.bathroom_fan
+          state: "off"
+        - service: input_datetime.set_datetime
+          data:
+            entity_id:
+              - input_datetime.bathroom_fan_turn_off_at
+              - input_datetime.bathroom_fan_turn_on_at
+            timestamp: 1
+          alias: Reset dates
+
+- alias: Керування витяжкою в кухні
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.kitchen_stove_power
+      above: 10
+      variables:
+        turn_off_at: 1
+        fan_command: speed_fast
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 10
+    - platform: numeric_state
+      entity_id: sensor.kitchen_stove_power
+      below: 1
+      variables:
+        turn_off_at: "{{ now().timestamp() + 10 * 60 }}"
+        fan_command: speed_down
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+    - platform: time
+      at: input_datetime.kitchen_fan_turn_off_at
+      variables:
+        turn_off_at: 1
+        fan_command: power_off
+  mode: restart
+  condition:
+    - condition: template
+      value_template: >-
+        {{ trigger.entity_id != 'sensor.kitchen_stove_power' or
+        trigger.from_state.state not in ['unknown', 'unavailable'] }}
+  action:
+    - service: script.kitchen_fan_control
+      data:
+        command: "{{ fan_command }}"
+    - service: input_datetime.set_datetime
+      data:
+        timestamp: "{{ turn_off_at }}"
+      target:
+        entity_id: input_datetime.kitchen_fan_turn_off_at
+      alias: Manage turn_off_at
+
+- alias: Керування вентиляцією в гардеробних
+  trigger:
+    - platform: state
+      entity_id: switch.bathroom_fan
+  action:
+    - service_template: "fan.turn_{{ 'on' if states('switch.bathroom_fan') == 'on' else 'off' }}"
+      entity_id: fan.wardrobes
+      alias: Ввікнути/Вимкнути вентиляцію

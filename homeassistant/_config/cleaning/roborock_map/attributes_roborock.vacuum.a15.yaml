@@ -1,0 +1,154 @@
+calibration_points:
+- map:
+    x: 256
+    y: 195
+  vacuum:
+    x: 25500
+    y: 25500
+- map:
+    x: 276
+    y: 195
+  vacuum:
+    x: 26500
+    y: 25500
+- map:
+    x: 256
+    y: 175
+  vacuum:
+    x: 25500
+    y: 26500
+charger:
+  a: 93
+  x: 25713
+  y: 25224
+cleaned_rooms: null
+country: de
+goto: null
+goto_path: null
+goto_predicted_path: null
+ignored_obstacles: null
+ignored_obstacles_with_photo: null
+image:
+  height: 449
+  offset_x: 254
+  offset_y: 257
+  rotation: 0
+  scale: 1.0
+  size: 197560
+  width: 440
+is_empty: false
+map_name: roboroommap%2F505989053%2F10
+map_saved: true
+model: roborock.vacuum.a15
+no_go_areas: []
+no_mopping_areas: []
+obstacles: null
+obstacles_with_photo: null
+path:
+  angle: 0
+  path:
+  - - x: 25699
+      y: 25430
+    - x: 25696
+      y: 25522
+    - x: 25693
+      y: 25601
+    - x: 25691
+      y: 25603
+    - x: 25695
+      y: 25555
+    - x: 25700
+      y: 25511
+    - x: 25701
+      y: 25477
+    - x: 25703
+      y: 25448
+    - x: 25704
+      y: 25419
+    - x: 25705
+      y: 25402
+  point_length: 10
+  point_size: 4
+room_numbers:
+  16: null
+  17: null
+  18: null
+  19: null
+  20: null
+  21: null
+  22: null
+  23: null
+  24: null
+  25: null
+  26: null
+  27: null
+rooms:
+  16:
+    x0: 20500
+    x1: 23000
+    y0: 16500
+    y1: 20750
+  17:
+    x0: 17300
+    x1: 20400
+    y0: 16550
+    y1: 22200
+  18:
+    x0: 23400
+    x1: 25900
+    y0: 16500
+    y1: 20750
+  19:
+    x0: 17700
+    x1: 20500
+    y0: 27050
+    y1: 30600
+  20:
+    x0: 15800
+    x1: 20400
+    y0: 22500
+    y1: 27100
+  21:
+    x0: 20450
+    x1: 24100
+    y0: 25700
+    y1: 30850
+  22:
+    x0: 20100
+    x1: 25000
+    y0: 20750
+    y1: 25850
+  23:
+    x0: 25000
+    x1: 30350
+    y0: 18050
+    y1: 22250
+  24:
+    x0: 26200
+    x1: 29950
+    y0: 16500
+    y1: 18400
+  25:
+    x0: 24100
+    x1: 27300
+    y0: 25150
+    y1: 30850
+  26:
+    x0: 25350
+    x1: 27200
+    y0: 22300
+    y1: 23850
+  27:
+    x0: 23150
+    x1: 24950
+    y0: 22200
+    y1: 23950
+used_api: xiaomi
+vacuum_position:
+  a: -87
+  x: 25705
+  y: 25402
+vacuum_room: 25
+vacuum_room_name: null
+walls: []
+zones: null

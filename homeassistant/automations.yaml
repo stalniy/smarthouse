@@ -1,0 +1,366 @@
+- id: '1685193984125'
+  alias: Leave home
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - group.residents
+    from: home
+    to: not_home
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  condition: []
+  action:
+  - type: turn_off
+    device_id: e4edd8a8e5c41dfcd5e5fb995faae3ef
+    entity_id: switch.hot_water_pump
+    domain: switch
+  - type: turn_off
+    device_id: 39eeedbff766a6e6a7a5f477323810d5
+    entity_id: light.kid_bathroom
+    domain: light
+  - type: turn_off
+    device_id: 7963b61108aaeabc04743970d4f37081
+    entity_id: light.master_bathroom
+    domain: light
+  mode: single
+- id: '1686056821'
+  alias: Керування насосу ГВП
+  trigger:
+  - entity_id: light.kid_bathroom
+    platform: state
+  - entity_id: light.master_bathroom
+    platform: state
+  - entity_id: binary_sensor.kitchen_motion
+    platform: state
+    to: 'on'
+  - entity_id:
+    - binary_sensor.kitchen_motion
+    platform: state
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  - platform: time
+    at: 05:49:00
+    variables:
+      force_state: 'on'
+  - platform: time
+    at: 05:59:00
+  - platform: state
+    entity_id:
+    - group.residents
+    to: home
+    variables:
+      force_state: 'on'
+  action:
+  - service_template: "{% if states('binary_sensor.needs_hot_water_pump') == \"on\"
+      or force_state == \"on\" %}\n  switch.turn_on\n{% else %}\n  switch.turn_off\n{%
+      endif %}\n"
+    entity_id:
+    - switch.hot_water_pump
+    alias: Ввікнути/Вимкнути насос ГВП
+- id: '1686211132458'
+  alias: Керування бойлером
+  description: ''
+  trigger:
+  - type: energy
+    platform: device
+    device_id: 26ffd1f44a4fa883a5346115b3592da0
+    entity_id: sensor.energy_current_hour
+    domain: sensor
+    above: 1.5
+    variables:
+      heater_state: 'on'
+  - type: energy
+    platform: device
+    device_id: 26ffd1f44a4fa883a5346115b3592da0
+    entity_id: sensor.energy_current_hour
+    domain: sensor
+    below: 1.5
+    variables:
+      heater_state: 'off'
+  - platform: time
+    at: 05:00:00
+    variables:
+      heater_state: 'on'
+  - platform: time
+    at: 05:50:00
+    variables:
+      heater_state: 'off'
+  - platform: state
+    entity_id: input_boolean.force_water_heater
+    variables:
+      heater_state: '{{ trigger.to_state.state }}'
+  condition:
+  - condition: template
+    value_template: '{{ heater_state == "off" and states("sensor.energy_current_hour")
+      | float(0.0) < 2 or heater_state == "on" }}
+
+      '
+  action:
+  - alias: Ввікнути/Вимкнути бойлер
+    service_template: switch.turn_{{ heater_state }}
+    entity_id: switch.water_heater_2k
+  mode: single
+- id: '1686369648689'
+  alias: Керування освітлення гаража
+  description: ''
+  trigger:
+  - platform: sun
+    event: sunset
+    offset: -00:15:00
+    variables:
+      light_state: 'on'
+  - platform: sun
+    event: sunset
+    offset: 01:00:00
+    variables:
+      light_state: 'off'
+  - platform: time
+    at: 01:00:00
+    variables:
+      light_state: 'off'
+  condition:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: group.residents
+      state: home
+    - condition: template
+      value_template: '{{ light_state == "off" }}'
+  action:
+  - entity_id: switch.garage_light_outside
+    service_template: switch.turn_{{ light_state }}
+    alias: Toggle light
+  mode: single
+- id: '1686398557380'
+  alias: Керування насосом ТП
+  description: ''
+  trigger:
+  - type: power
+    platform: device
+    device_id: 26ffd1f44a4fa883a5346115b3592da0
+    entity_id: sensor.power_production_now
+    domain: sensor
+    above: 1000
+    variables:
+      pump_state: 'on'
+  - type: power
+    platform: device
+    device_id: 26ffd1f44a4fa883a5346115b3592da0
+    entity_id: sensor.power_production_now
+    domain: sensor
+    below: 999
+    variables:
+      pump_state: 'off'
+  - platform: state
+    entity_id:
+    - switch.main_heater
+    to: 'on'
+    variables:
+      pump_state: 'on'
+  condition: []
+  action:
+  - alias: Toggle pump
+    service_template: switch.turn_{{ pump_state }}
+    entity_id: switch.hot_floor_pump
+  mode: single
+- id: '1686459780356'
+  alias: Повідомлення про розряджені девайси
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.has_devices_with_low_battery
+    to: 'on'
+  condition: []
+  action:
+  - service: notify.telegram_serhii
+    data:
+      message: Є девайси що розрядились нижче 15%
+      title: Розряджені девайси!
+  mode: single
+- id: '1687142185577'
+  alias: Ручне керування бойлером
+  description: ''
+  trigger:
+  - platform: device
+    type: turned_off
+    device_id: 39eeedbff766a6e6a7a5f477323810d5
+    entity_id: light.kid_bathroom
+    domain: light
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - platform: device
+    type: turned_off
+    device_id: 7963b61108aaeabc04743970d4f37081
+    entity_id: light.master_bathroom
+    domain: light
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - platform: event
+    event_type: heater_force_on
+  condition: []
+  action:
+  - service: "{% if trigger.platform == \"event\" %}\n  input_boolean.turn_on\n{%
+      elif states(\"light.master_bathroom\") == \"off\" and states(\"light.kid_bathroom\")
+      == \"off\" %}\n  input_boolean.turn_off\n{% endif %}\n"
+    data: {}
+    target:
+      entity_id: input_boolean.force_water_heater
+  - condition: state
+    entity_id: input_boolean.force_water_heater
+    state: 'on'
+  - delay:
+      hours: 1
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - service: input_boolean.turn_off
+    data: {}
+    target:
+      entity_id: input_boolean.force_water_heater
+  mode: restart
+- id: '1687463732202'
+  alias: 'Serhii: telegram bot based home presence'
+  description: ''
+  trigger:
+  - platform: event
+    event_type: telegram_command
+    context: {}
+    event_data:
+      command: /back_home
+    variables:
+      device_tracker_state: home
+  - platform: event
+    event_type: telegram_command
+    context: {}
+    event_data:
+      command: /leave_home
+    variables:
+      device_tracker_state: not_home
+  condition: []
+  action:
+  - service: device_tracker.see
+    data:
+      dev_id: serhii_phone_shortcut
+      location_name: '{{ device_tracker_state }}'
+  mode: single
+- id: '1688027239221'
+  alias: Хтось в будинку коли мене нема
+  description: ''
+  trigger:
+  - type: motion
+    platform: device
+    device_id: bd5da9a66aed1fda461a02ace69dc036
+    entity_id: binary_sensor.kitchen_motion
+    domain: binary_sensor
+  condition:
+  - condition: state
+    entity_id: group.residents
+    state: not_home
+  action:
+  - service: notify.telegram_serhii
+    data:
+      message: Якийсь рух в будинку!!!
+  mode: single
+- id: '1688274288808'
+  alias: Прибирання будинку
+  description: ''
+  trigger:
+  - platform: time
+    at:
+    - 09:00:00
+    - '17:00:00'
+  - platform: event
+    event_type: telegram_callback
+    event_data:
+      command: /clean_house
+    context: {}
+    variables:
+      force_clean: true
+  - platform: state
+    entity_id:
+    - group.residents
+    to: not_home
+  - platform: event
+    event_type: telegram_command
+    event_data:
+      command: /clean_house
+    variables:
+      force_clean: true
+  condition:
+  - condition: or
+    conditions:
+    - condition: and
+      conditions:
+      - condition: template
+        value_template: '{{ as_datetime(states(''sensor.roborock_vacuum_a15_last_clean_start'')).strftime(''%Y-%m-%d'')
+          != utcnow().strftime("%Y-%m-%d") }}'
+        alias: Haven't cleaned today
+      - condition: time
+        weekday:
+        - mon
+        - tue
+        - wed
+        - fri
+        - thu
+        - sat
+        alias: not Sunday
+    - condition: template
+      value_template: '{{ force_clean is defined and force_clean }}'
+      alias: Force clean
+  action:
+  - if:
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: group.residents
+        state: not_home
+      - condition: template
+        value_template: '{{ force_clean is defined and force_clean }}'
+        alias: Force clean
+      alias: Нас нема вдома або підтверджене прибирання
+    then:
+    - service: script.vacuum_clean
+      alias: Почати прибирання
+      data:
+        rooms: '{{ states(''sensor.rooms_to_clean_today'') }}'
+    - if:
+      - condition: template
+        value_template: '{{ trigger.event is defined and trigger.event.event_type
+          == "telegram_callback" }}'
+      then:
+      - service: telegram_bot.answer_callback_query
+        data:
+          show_alert: false
+          callback_query_id: '{{ trigger.event.data.id }}'
+          message: OK
+      - service: telegram_bot.edit_replymarkup
+        data:
+          message_id: '{{ trigger.event.data.message.message_id }}'
+          chat_id: '{{ trigger.event.data.chat_id }}'
+          inline_keyboard: []
+      alias: Answer to telegram command if sent
+    else:
+    - service: notify.telegram_serhii
+      data:
+        message: 'Час поприбирати зміщено на коли Ви покинете будинок. Буде прибрано:
+
+          {{ states(''sensor.rooms_to_clean_today'') }}
+
+          '
+        data:
+          disable_notification: true
+          inline_keyboard:
+          - Прибирати зараз:/clean_house
+      alias: Сповіщення про прибирання
+  mode: single

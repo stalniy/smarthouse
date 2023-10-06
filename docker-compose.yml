@@ -1,0 +1,95 @@
+version: '3'
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:2023.5.3"
+    volumes:
+      - /home/homeman/smarthome/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    devices:
+      - /dev/snd:/dev/snd
+
+  zb2mqtt-house: 
+    container_name: zb2mqtt-house
+    image: koenkk/zigbee2mqtt:1.32.1
+    restart: unless-stopped
+    depends_on:
+      - mq
+    volumes: 
+      - /run/udev:/run/udev:ro
+      - /home/homeman/smarthome/zb2mqtt-house:/app/data
+    environment:
+      - TZ=Europe/Kyiv
+      - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USER}
+      - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
+      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=tcp://192.168.88.131:6638
+    ports:
+      - 9123:8080
+
+  zb2mqtt-garage: 
+    container_name: zb2mqtt-garage
+    image: koenkk/zigbee2mqtt:1.32.1
+    restart: unless-stopped
+    depends_on:
+      - mq
+    volumes: 
+      - /run/udev:/run/udev:ro
+      - /home/homeman/smarthome/zb2mqtt-garage:/app/data
+    environment:
+      - TZ=Europe/Kyiv
+      - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USER}
+      - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
+      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=tcp://192.168.88.130:6638
+    ports:
+      - 9124:8080
+    
+  mq:
+    container_name: mqtt
+    image: eclipse-mosquitto
+    restart: unless-stopped
+    volumes:
+      - /home/homeman/smarthome/mqtt/config:/mosquitto/config
+      - /home/homeman/smarthome/mqtt/data:/mosquitto/data
+      - /home/homeman/smarthome/mqtt/log:/mosquitto/log
+    network_mode: host
+
+  # rhasspy:
+  #   image: "rhasspy/rhasspy"
+  #   container_name: rhasspy
+  #   restart: unless-stopped
+  #   volumes:
+  #     - /home/homeman/smarthome/rhasspy/profiles:/profiles
+  #     - /etc/localtime:/etc/localtime:ro
+  #   # ports:
+  #   #   - "12101:12101"
+  #   devices:
+  #     - /dev/snd:/dev/snd
+  #   command: --user-profiles /profiles --profile en
+  #   network_mode: host
+
+  ebusd:
+    image: john30/ebusd:v23.2
+    container_name: ebusd
+    restart: unless-stopped
+    environment:
+      - EBUSD_DEVICE
+      - EBUSD_MQTTHOST=homeassistant.lan
+      - EBUSD_MQTTPORT=1883
+      - EBUSD_MQTTUSER=${MQTT_USER}
+      - EBUSD_MQTTPASS=${MQTT_PASSWORD}
+      - EBUSD_MQTTINT=/etc/ebusd/ha.cfg 
+      - EBUSD_MQTTJSON=1
+      - EBUSD_CONFIGLANG=en
+      - EBUSD_CONFIGPATH=/etc/ebusd-config
+      - EBUSD_SCANCONFIG=08
+      - EBUSD_LATENCY=100
+      - EBUSD_ACCESSLEVEL=*
+      # - EBUSD_LOGLEVEL=debug
+      # - EBUSD_ENABLEHEX=1
+    volumes:
+    - /home/homeman/smarthome/ebusd/ha.cfg:/etc/ebusd/ha.cfg
+    - /home/homeman/smarthome/ebusd/config:/etc/ebusd-config
+    network_mode: host

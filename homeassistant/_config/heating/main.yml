@@ -1,0 +1,175 @@
+automation: !include ./automations.yml
+
+homeassistant:
+  customize:
+    number.ebusd_bai_partloadhckw_power:
+      max: 14
+      min: 2
+    number.ebusd_bai_partloadhwckw_power:
+      max: 14
+      min: 2
+    number.ebusd_bai_hwctempmax_temp:
+      min: 35
+      max: 75
+      step: 1
+      mode: slider
+
+input_number: 
+  master_bedroom_temp_desired:
+    name: Доросла спальня 
+    initial: 19
+    min: 5
+    max: 25
+    step: 1 
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  master_bathroom_temp_desired:
+    name: Доросла ванна 
+    initial: 19
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  cabinet_temp_desired:
+    name: Кабінет 
+    initial: 19
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  kid_small_bedroom_temp_desired:
+    name: Дитяча мала спальня 
+    initial: 19
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  kid_big_bedroom_temp_desired:
+    name: Дитяча велика спальня 
+    initial: 19
+    min: 5
+    max: 25
+    step: 1 
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  kid_bathroom_temp_desired:
+    name: Дитяча ванна 
+    initial: 19
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  kitchen_temp_desired:
+    name: Кухня
+    initial: 19
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  living_room_temp_desired:
+    name: Вітальня
+    initial: 19
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  tech_room_temp_desired:
+    name: Тех. кімната
+    initial: 18
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+  entrance_room_temp_desired:
+    name: Прихожа
+    initial: 18
+    min: 5
+    max: 25
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+
+  night_shift_temp_desired:
+    name: Нічне пониження темп.
+    min: 0
+    max: 10
+    step: 1
+    icon: mdi:home-thermometer
+    unit_of_measurement: °C
+
+  main_heater_storage_temp_desired:
+    name: Бажана темп. ГВС
+    min: 35
+    max: 70
+    step: 1
+    icon: mdi:thermometer-water
+    unit_of_measurement: °C
+
+  heating_last_flowtemp: 
+    name: Останнє значення температури носія 
+    min: 0
+    max: 100
+    step: 1
+    icon: mdi:thermometer
+    unit_of_measurement: °C
+
+template:
+  - sensor:
+    - name: main_heater_current_power
+      icon: mdi:flash
+      state: |
+        {% set max_power = 14 %}
+        {% if states("binary_sensor.ebusd_bai_flame") == 'on' %}
+          {{ states('sensor.ebusd_bai_modulationtempdesired') | float * max_power / 100 | round(2) }}
+        {% else %}
+          0
+        {% endif %}
+      unit_of_measurement: kW
+    - name: main_heater_errors
+      icon: mdi:alert-octagram
+      state: |
+        {% set sensors = [
+          states('sensor.ebusd_bai_currenterror_error'), 
+          states('sensor.ebusd_bai_currenterror_error_2'), 
+          states('sensor.ebusd_bai_currenterror_error_3'), 
+          states('sensor.ebusd_bai_currenterror_error_4'), 
+          states('sensor.ebusd_bai_currenterror_error_5') 
+        ] %}
+        {% set result = sensors
+          | reject('eq', 'None')
+          | list
+          | join(',\n')
+        %}
+        {{ 'none' if result == '' else result }}
+    - name: house_max_temp_desired
+      state: | 
+        {{
+          [
+            states('input_number.master_bedroom_temp_desired'),
+            states('input_number.master_bathroom_temp_desired'),
+            states('input_number.cabinet_temp_desired'),
+            states('input_number.kid_small_bedroom_temp_desired'),
+            states('input_number.kid_big_bedroom_temp_desired'),
+            states('input_number.kid_bathroom_temp_desired'),
+            states('input_number.kitchen_temp_desired'),
+            states('input_number.living_room_temp_desired'),
+            states('input_number.tech_room_temp_desired'),
+            states('input_number.entrance_room_temp_desired'),
+          ] | max
+        }}
+    - name: heating_flow_temperature
+      state: |
+        {% if states('sensor.ebusd_bai_positionvalveset') == 'Heating' %}
+          {{ states('sensor.ebusd_bai_flowtemp_temp') }}
+        {% else %}
+          {{ states('input_number.heating_last_flowtemp') }}
+        {% endif %}
+      unit_of_measurement: °C
+      

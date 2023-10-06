@@ -1,0 +1,66 @@
+utility_meter:
+  monthly_energy:
+    source: sensor.power_consumption_energy
+    name: Monthly Energy
+    cycle: monthly
+    offset:
+      days: 0
+      hours: 12
+      minutes: 0
+    tariffs:
+      - day
+      - night
+
+input_number:
+  energy_consumption_day_cost: 
+    name: Cost per Kw/h during day
+    unit_of_measurement: UAH
+    mode: box
+    min: 0
+    max: 100
+  energy_consumption_night_cost: 
+    name: Cost per Kw/h during night
+    unit_of_measurement: UAH
+    mode: box
+    min: 0
+    max: 100
+
+template:
+  - sensor:
+    - name: monthly_energy_day_cost
+      state: |
+        {{ 
+          (states('sensor.monthly_energy_day') | float * states('input_number.energy_consumption_day_cost') | float) | round(2)
+        }}
+      unit_of_measurement: UAH
+    - name: monthly_energy_night_cost
+      state: |
+        {{ 
+          (states('sensor.monthly_energy_night') | float * states('input_number.energy_consumption_night_cost') | float) | round(2)
+        }}
+      unit_of_measurement: UAH
+    - name: monthly_energy_total
+      state: |
+        {{
+          states('sensor.monthly_energy_day') | float + 
+          states('sensor.monthly_energy_night') | float
+        }}
+      unit_of_measurement: kW/h
+    - name: monthly_energy_total_cost
+      state: |
+        {{ states('sensor.monthly_energy_day_cost') | float + states('sensor.monthly_energy_night_cost') | float }}
+      unit_of_measurement: UAH
+  - trigger:
+      - platform: time
+        at: '07:00:00'
+      - platform: time
+        at: '23:00:00'
+      - platform: homeassistant
+        event: start
+      - platform: event
+        event_type: event_template_reloaded
+    sensor:
+      - name: energy_tariff
+        state: "{{ 'day' if 7 <= (now() | as_local).hour < 23 else 'night' }}"
+
+automation: !include ./automations.yml

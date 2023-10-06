@@ -1,0 +1,89 @@
+kitchen_fan_control:
+  alias: Витяжка на кухні
+  fields:
+    command:
+      name: Command to send
+      required: true
+      selector:
+        select:
+          options:
+          - speed_fast
+          - speed_slow
+          - speed_up
+          - speed_down
+          - power_off
+          - toggle_light
+          - timer
+  variables:
+    device_id: 013ba1bf10a127916fba8618064f93bf
+  sequence:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ command == ''speed_fast'' }}'
+      sequence:
+      - service: remote.send_command
+        data:
+          num_repeats: 2
+          delay_secs: 1
+          hold_secs: 0
+          device: kitchen_fan
+          command: speed_down
+        target:
+          device_id: '{{ device_id }}'
+      - service: remote.send_command
+        data:
+          num_repeats: 1
+          delay_secs: 0.5
+          hold_secs: 0
+          device: kitchen_fan
+          command: speed_up
+        target:
+          device_id: '{{ device_id }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ command == ''speed_slow'' }}'
+      sequence:
+      - service: remote.send_command
+        data:
+          num_repeats: 2
+          delay_secs: 1
+          hold_secs: 0
+          device: kitchen_fan
+          command: speed_down
+        target:
+          device_id: '{{ device_id }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ command == ''power_off'' }}'
+      sequence:
+      - service: remote.send_command
+        data:
+          num_repeats: 1
+          delay_secs: 0.4
+          hold_secs: 0
+          device: kitchen_fan
+          command: speed_down
+        target:
+          device_id: '{{ device_id }}'
+      - service: remote.send_command
+        data:
+          num_repeats: 1
+          delay_secs: 0.4
+          hold_secs: 0
+          device: kitchen_fan
+          command: power
+        target:
+          device_id: '{{ device_id }}'
+    default:
+    - service: remote.send_command
+      data:
+        num_repeats: 1
+        delay_secs: 0.5
+        hold_secs: 0
+        device: kitchen_fan
+        command: '{{ command }}'
+      target:
+        device_id: '{{ device_id }}'
+  mode: single
+  icon: mdi:fan
