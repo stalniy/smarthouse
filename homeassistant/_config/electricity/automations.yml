@@ -1,0 +1,42 @@
+- id: define_energy_tariffs  
+  alias: Select electricity tariff
+  trigger:
+    - platform: state
+      entity_id: sensor.energy_tariff
+  action:
+    - service: select.select_option
+      target:
+        entity_id: 
+          - select.monthly_energy
+      data:
+        option: "{{ states('sensor.energy_tariff') }}"
+
+- id: send_energy_summary_to_telegram
+  alias: Відправка деталей про електрику в Телеграм
+  initial_state: true
+  trigger:
+    - platform: time
+      at: 07:00
+      id: monthly_report
+    - platform: event
+      event_type: telegram_command
+      event_data: 
+        command: /energy_summary
+      id: current_report
+  condition:
+    - condition: template
+      value_template: |
+        {{ trigger.id == 'current_report' or (trigger.id == 'monthly_report' and now().day == 1) }}
+  action:
+    - service: notify.telegram_serhii
+      data:
+        message: |
+          {% if trigger.id == 'monthly_report' %}
+            {{"\U0001F4C5"}} Новий комунальний місяць
+          {% else %}
+            {{"\U0001F4C5"}} {{ now().strftime("%H:%M:%S %d.%m.%Y") }}
+          {% endif %}  
+          *Імпортовано*:
+          {{"\U000026A1"}} Всього - {{ states('sensor.monthly_energy_total') }} КВт/год ({{ states('sensor.monthly_energy_total_cost') }} грн)
+          {{"\U00002600"}} День - {{ states('sensor.monthly_energy_day') }} КВт/год ({{ states('sensor.monthly_energy_day_cost') }} грн)
+          {{"\U0001F31A"}} Ніч - {{ states('sensor.monthly_energy_night') }} КВт/год ({{ states('sensor.monthly_energy_night_cost') }} грн)

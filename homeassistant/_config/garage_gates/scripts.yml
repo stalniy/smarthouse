@@ -1,0 +1,61 @@
+toggle_garage_gate:
+  alias: Відкрити/закрити ворота гаража
+  fields:
+    gate:
+      name: Gates to open
+      required: true
+      selector:
+        select:
+          options:
+            - left
+            - right
+    state:
+      name: Gates state
+      required: true
+      selector:
+        boolean: ~
+  variables:
+    open_contact_entity_id: "{{ 'binary_sensor.garage_gates_' ~ gate ~ '_open_contact' }}"
+    expected_state: "{{ 'on' if state else 'off' }}"
+  sequence:
+    - condition: template
+      value_template: "{{ states(open_contact_entity_id) != expected_state }}"
+    - if:
+        - condition: device
+          domain: switch
+          type: is_off
+          device_id: 64161082b8b71db7e3a26e6fed8fc4d1
+          entity_id: switch.garage_gates_power
+      then:
+        - service: switch.turn_on
+          entity_id: switch.garage_gates_power
+        - delay: "00:00:03"
+    - service: switch.toggle
+      target:
+        entity_id: |
+          switch.garage_gates_bot_{{ gate }}
+      alias: Toggle garage gates
+  mode: parallel
+  icon: mdi:garage-variant
+
+toggle_home_state_from_car:
+  alias: Зміна стану "вдома" з машини
+  sequence:
+    - if:
+        - condition: state
+          entity_id: person.serhii
+          state: not_home
+      then:
+        - service: switch.turn_on
+          entity_id: switch.garage_gates_left_open
+        - service: device_tracker.see
+          data:
+            dev_id: serhii_phone_shortcut
+            location_name: home
+      else:
+        - service: device_tracker.see
+          data:
+            dev_id: serhii_phone_shortcut
+            location_name: not_home
+  mode: single
+  icon: mdi:car

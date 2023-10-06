@@ -1,0 +1,25 @@
+2023-10-06 07:04:26.928 WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration localtuya which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2023-10-06 07:04:26.929 WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration hacs which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2023-10-06 07:04:26.930 WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration sonoff which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2023-10-06 07:04:27.360 WARNING (MainThread) [homeassistant.components.lovelace] Lovelace is running in storage mode. Define resources via user interface
+2023-10-06 07:04:45.510 WARNING (MainThread) [homeassistant.config_entries] Config entry 'Presence-Sensor-FP2-FC46' for homekit_controller integration not ready yet: Timeout while waiting for connection to device 192.168.88.123:49739; Retrying in background
+2023-10-06 07:05:00.493 INFO (SyncWorker_1) [homeassistant.components.python_script.heating_ebus_sync.py] {'topic': 'ebusd/bai/SetModeOverride/set', 'qos': '1', 'payload': '0;39;70;-;-;1;0;1;-;0;0;0'}
+2023-10-06 07:05:18.188 WARNING (MainThread) [homeassistant.components.automation.povidomlennia_pro_stan_garazhnikh_vorit_2] Гараж: Вимкнути живлення на ворота, коли закрились: Already running
+2023-10-06 07:05:18.237 WARNING (MainThread) [homeassistant.components.mqtt.light.schema_json] Invalid color mode 'xy' received for entity light.0xa4c138ef40675ea6
+2023-10-06 07:05:18.258 WARNING (MainThread) [homeassistant.components.mqtt.light.schema_json] Invalid color mode 'xy' received for entity light.0xa4c138b9501adc7a
+2023-10-06 07:05:18.268 WARNING (MainThread) [homeassistant.components.mqtt.light.schema_json] Invalid color mode 'xy' received for entity light.0xa4c138aa7b9ce7bf
+2023-10-06 07:10:00.481 INFO (SyncWorker_2) [homeassistant.components.python_script.heating_ebus_sync.py] {'topic': 'ebusd/bai/SetModeOverride/set', 'qos': '1', 'payload': '0;39;70;-;-;1;0;1;-;0;0;0'}
+2023-10-06 07:11:15.974 ERROR (MainThread) [homeassistant.helpers.template_entity] TemplateError('ValueError: Template error: float got invalid input 'unavailable' when rendering template '{{ 
+  (states('sensor.monthly_energy_day') | float * states('input_number.energy_consumption_day_cost') | float) | round(2)
+}}' but no default was specified') while processing template 'Template<template=({{ 
+  (states('sensor.monthly_energy_day') | float * states('input_number.energy_consumption_day_cost') | float) | round(2)
+}}) renders=26>' for attribute '_attr_native_value' in entity 'sensor.monthly_energy_day_cost'
+2023-10-06 07:11:15.988 ERROR (MainThread) [homeassistant.helpers.template_entity] TemplateError('ValueError: Template error: float got invalid input 'unavailable' when rendering template '{{
+  states('sensor.monthly_energy_day') | float + 
+  states('sensor.monthly_energy_night') | float
+}}' but no default was specified') while processing template 'Template<template=({{
+  states('sensor.monthly_energy_day') | float + 
+  states('sensor.monthly_energy_night') | float
+}}) renders=26>' for attribute '_attr_native_value' in entity 'sensor.monthly_energy_total'
+2023-10-06 07:11:15.992 ERROR (MainThread) [homeassistant.helpers.template_entity] TemplateError('ValueError: Template error: float got invalid input 'unavailable' when rendering template '{{ states('sensor.monthly_energy_day_cost') | float + states('sensor.monthly_energy_night_cost') | float }}' but no default was specified') while processing template 'Template<template=({{ states('sensor.monthly_energy_day_cost') | float + states('sensor.monthly_energy_night_cost') | float }}) renders=24>' for attribute '_attr_native_value' in entity 'sensor.monthly_energy_total_cost'
+2023-10-06 07:11:15.997 WARNING (MainThread) [homeassistant.components.automation.keruvannia_nasosu_gvp] Керування насосу ГВП: Already running

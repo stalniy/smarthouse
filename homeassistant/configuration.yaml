@@ -1,0 +1,71 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+automation: !include automations.yaml
+
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+template: !include template.yml
+
+telegram_bot: 
+  platform: polling
+  api_key: !secret telegram_bot_key
+  allowed_chat_ids: 
+    - !secret telegram_bot_serhii_chat
+
+notify:
+  - platform: telegram
+    name: telegram_serhii
+    chat_id: !secret telegram_bot_serhii_chat
+
+device_tracker: 
+
+panel_iframe:
+  zbhouse:
+    title: House ZB
+    url: http://homeassistant.lan:9123/
+    icon: mdi:home-automation
+    require_admin: true
+
+  zbgarage:
+    title: Garage ZB
+    url: http://homeassistant.lan:9124/
+    icon: mdi:home-automation
+    require_admin: true
+
+ebusd:
+  host: homeassistant.lan
+  circuit: bai
+  name: Main heater
+
+
+homeassistant:
+  packages:
+    core: !include _config/core/main.yml
+    heating: !include _config/heating/main.yml
+    garage_gates: !include _config/garage_gates/main.yml
+    electricity: !include _config/electricity/main.yml
+    cleaning: !include _config/cleaning/main.yml
+    ventilation: !include _config/ventilation/main.yml
+
+python_script:
+
+logger:
+  default: warning
+  logs:
+    homeassistant.components.python_script.heating_ebus_sync.py: info
+
+lovelace:
+  resources:
+    - url: /hacsfiles/lovelace-multiple-entity-row/multiple-entity-row.js
+      type: module

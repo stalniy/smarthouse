@@ -1,0 +1,35 @@
+- id: set_back_home_date
+  alias: "Встановити час повернення додому"
+  trigger:
+    - platform: state
+      entity_id: group.residents
+      from: not_home
+      to: home
+  action:
+    - service: input_datetime.set_datetime
+      data:   
+        timestamp: "{{ now().timestamp() }}"
+  mode: single
+
+- id: sync_device_state_with_input
+  alias: Збереження трекінгу девайса
+  trigger:
+    - platform: state
+      entity_id: person.serhii
+  action:
+    - service: input_text.set_value
+      data: 
+        value: "{{ trigger.to_state.state }}"
+      target: 
+        entity_id: input_text.serhii_phone_shortcut
+
+- id: restore_device_state_on_restart
+  alias: Відновити стан девайсу на перезавантаження HASS
+  trigger:
+    - platform: homeassistant
+      event: start
+  action:
+    - service: device_tracker.see
+      data:
+        dev_id: serhii_phone_shortcut
+        location_name: "{{ states('input_text.serhii_phone_shortcut') }}"

@@ -1,0 +1,63 @@
+- id: sync_temp_over_ebus
+  alias: Синхронізація температур нагріву через Ebus
+  trigger:
+    - platform: time_pattern
+      minutes: "/5"
+    - platform: state
+      entity_id: 
+        - switch.ebusd_bai_heatingswitch_onoff
+        - switch.ebusd_bai_hwcswitch_onoff
+        - input_number.main_heater_storage_temp_desired 
+  action:
+    - service: python_script.heating_ebus_sync
+  mode: single
+
+- id: notify_about_heating
+  alias: 'Нотифікація про включення нагріву'
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.ebusd_bai_flame
+      for: 00:01:00
+  action:
+  - service: notify.telegram_serhii
+    data:
+      message: |
+        *Режим котла:* {{ states('sensor.ebusd_bai_state') }}
+        ⚡ *Підігрів* {{ states('binary_sensor.ebusd_bai_flame') }}, потужність {{ states('sensor.main_heater_current_power') }}
+        ♨ *Температура* {{ states('sensor.ebusd_bai_flowtemp_temp') }} / {{ states('sensor.ebusd_bai_flowtempdesired_temp') }}
+        ️🚰 *ГВС* {{ states('sensor.ebusd_bai_storagetemp_temp') }} / {{ states('sensor.ebusd_bai_storagetempdesired_temp') }}
+  mode: single
+
+- id: heating_abnormal_water_pressure
+  alias: "Нотифікація про не нормальний тиск в опаленні"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.ebusd_bai_waterpressure_press
+      above: 2.2
+    - platform: numeric_state
+      entity_id: sensor.ebusd_bai_waterpressure_press
+      below: 1.2
+  action:
+    - service: notify.telegram_serhii
+      data:
+        message: |
+          Критичний тиск теплоносія: <b>{{ states('sensor.ebusd_bai_waterpressure_press') }}</b>
+    - service: persistent_notification.create
+      data:
+        title: ⚠ - Warning!
+        message: "Критичний тиск теплоносія: <b>{{ states('sensor.ebusd_bai_waterpressure_press') }}</b>"
+  mode: single
+
+- id: save_last_heating_temperature
+  alias: "Збереження останнього значення температури носія перед переключення клапана ГВС"
+  trigger:
+    - platform: state
+      entity_id: sensor.ebusd_bai_positionvalveset
+      from: Heating
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('sensor.ebusd_bai_flowtemp_temp') | float }}"
+      target:
+        entity_id: input_number.heating_last_flowtemp
+  mode: restart 

@@ -1,0 +1,78 @@
+- id: notify_about_garage_gates_state
+  alias: "Гараж: Повідомлення про стан гаражних воріт"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.garage_gates_left_open_contact
+    - platform: state
+      entity_id: binary_sensor.garage_gates_right_open_contact
+  action:
+    - service: notify.telegram_serhii
+      data:
+        message: >-
+          {{ "Ліві" if "_left_" in trigger.entity_id else "Праві" }} ворота 
+          {{ "відкрито" if trigger.to_state.state == "on" else "закрито" }}
+          ({{ trigger.to_state.state }})
+  mode: parallel
+
+- id: ensure_gates_are_closed_on_home_leave
+  alias: "Гараж: Закрити ворота коли покидаємо будинок"
+  trigger:
+    - platform: state
+      entity_id: group.residents
+      to: not_home
+    - platform: time
+      at: sensor.some_time_at_home_passed
+    - platform: event
+      event_type: telegram_command
+      event_data:
+        command: /close_garage_gates
+  action:
+    - service: switch.turn_off
+      entity_id: 
+        - switch.garage_gates_left_open
+        - switch.garage_gates_right_open
+  mode: single
+
+- id: power_off_garage_gates_when_closed
+  alias: "Гараж: Вимкнути живлення на ворота, коли закрились"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.garage_gates_left_open_contact
+    - platform: state
+      entity_id: binary_sensor.garage_gates_right_open_contact
+    - platform: state
+      entity_id: binary_sensor.garage_gates_left_open_contact
+      to: "on"
+      for: "00:15:00"
+      variables:
+        force_power_off: true
+
+    - platform: state
+      entity_id: binary_sensor.garage_gates_right_open_contact
+      to: "on"
+      for: "00:15:00"
+      variables:
+        force_power_off: true
+  condition:
+    - condition: template
+      value_template: | 
+        {{ 
+          states('binary_sensor.garage_gates_left_open_contact') == "off" and
+          states('binary_sensor.garage_gates_right_open_contact') == "off" or 
+          force_power_off is defined and force_power_off
+        }}
+  action:
+    - delay: "00:00:10"
+    - service: switch.turn_off
+      target:
+        entity_id: switch.garage_gates_power
+    - if:
+        - condition: template
+          value_template: "{{ force_power_off is defined }}"
+      then:
+        - service: notify.telegram_serhii
+          data:
+            message: >-
+              Ворота відкриті більше 15хв, вимикаю живлення. 
+              Тисни /close\_garage\_gates, щоб закрити
+  mode: single

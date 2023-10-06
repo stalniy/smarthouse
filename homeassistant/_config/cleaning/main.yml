@@ -1,0 +1,135 @@
+input_boolean:
+  skip_child_zone: 
+    name: Не прибирати дитячу зону у вітальні
+
+template: 
+  - sensor:
+    - name: rooms_to_clean_today
+      state: >-
+        {% set rooms_to_always_clean = [
+          "hall",
+          "coming_room",
+          "living_room_table",
+          "kitchen"
+        ] %} 
+        
+        {% if now().isoweekday() % 2 == 0 %} 
+          {% set rooms_to_clean = rooms_to_always_clean + [
+            "bedroom_kid_small",
+            "bedroom_kid_big",
+            "child_bathroom"
+          ]%}
+
+          {% if states('input_boolean.skip_child_zone') == 'on' %}
+            {{ rooms_to_clean }}
+          {% else %}
+            {{ rooms_to_clean + ["living_room_entertainment"] }}
+          {% endif %}
+        {% else %}
+          {{ rooms_to_always_clean + [
+            "master_bathroom",
+            "master_bedroom",
+            "wardrobe",
+            "cabinet"
+          ]}}
+        {% endif %}
+
+script:
+  vacuum_clean:
+    alias: Vacuum clean rooms
+    mode: restart
+    icon: mdi:robot-vacuum
+    description: |
+      Cleans specified rooms by their names
+    fields:
+      rooms:
+        name: Rooms to clean
+        required: true
+        selector:
+          select:
+            multiple: true
+            options:
+            - bedroom_kid_small
+            - bedroom_kid_big
+            - cabinet
+            - kitchen
+            - coming_room
+            - living_room_table
+            - child_bathroom
+            - master_bedroom
+            - wardrobe
+            - living_room_entertainment
+            - master_bathroom
+            - hall
+    variables:
+      roomsIds: |
+        {% 
+          set roomsNamesToIds = [
+            { "label": "bedroom_kid_small", "id": 16 },
+            { "label": "bedroom_kid_big", "id": 17 },
+            { "label": "cabinet", "id": 18 },
+            { "label": "kitchen", "id": 19 },
+            { "label": "coming_room", "id": 20 },
+            { "label": "living_room_table", "id": 21 },
+            { "label": "child_bathroom", "id": 27 },
+            { "label": "master_bedroom", "id": 23 },
+            { "label": "wardrobe", "id": 24 },
+            { "label": "living_room_entertainment", "id": 25 },
+            { "label": "master_bathroom", "id": 26 },
+            { "label": "hall", "id": 22 }
+          ]
+        %} 
+        {{ roomsNamesToIds 
+          | selectattr('label', 'in', rooms)
+          | map(attribute="id")
+          | list 
+        }}
+    sequence:
+    - service: notify.telegram_serhii
+      data:
+        message: 'Брюс почав прибирання: {{ rooms }}'
+    - service: vacuum.send_command
+      data:
+        command: app_segment_clean
+        params: "{{ roomsIds }}"
+      target:
+        entity_id: vacuum.bruce
+
+  vacuum_clean_zone:
+    alias: Vacuum clean zones
+    icon: mdi:robot-vacuum
+    mode: single
+    fields:
+      zones:
+        name: Zone names to clean
+        required: true
+        selector:
+          select:
+            multiple: true
+            options:
+              - terrace_exit
+              - fireplace
+    variables:  
+      zones_coords: |
+        {% 
+          set coords = [
+            { "label": "terrace_exit", "value": [26033,25167,27317,27283] },
+            { "label": "fireplace", "value": [21500,25767,24533,26517] }
+          ]
+        %}
+        {{ coords 
+          | selectattr('label', 'in', zones)
+          | map(attribute="value")
+          | list  
+        }}
+    sequence: 
+      - condition: state
+        entity_id: vacuum.bruce
+        state: docked
+      - service: xiaomi_miio.vacuum_clean_zone
+        data:
+          repeats: 2
+          zone: "{{ zones_coords }}"
+        target:
+          entity_id: vacuum.bruce
+      

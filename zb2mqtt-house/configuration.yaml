@@ -1,0 +1,69 @@
+homeassistant: true
+permit_join: false
+frontend: true
+mqtt:
+  base_topic: zb2mqtt
+  server: mqtt://homeassistant.lan
+devices:
+  '0xdc8e95fffe15d3e7':
+    friendly_name: master_bathroom
+  '0xdc8e95fffe19a5e2':
+    friendly_name: hot_floor_pump
+  '0xdc8e95fffe1e3877':
+    friendly_name: kid_bathroom
+  '0x385b44fffe1b2520':
+    friendly_name: kid_bathroom_towel_dryer
+  '0xdc8e95fffe19bbe0':
+    friendly_name: master_bathroom_towel_dryer
+  '0xdc8e95fffe1e2e26':
+    friendly_name: hot_water_pump
+  '0x30fb10fffe76ff44':
+    friendly_name: master_bedroom_climate
+  '0xdc8e95fffe19bdaf':
+    friendly_name: house_outside
+  '0xa4c138d9f081d74c':
+    friendly_name: kitchen_stove
+  '0xa4c138757bd27eb8':
+    friendly_name: kitchen_light
+  '0x00124b002919ab73':
+    friendly_name: kitchen_motion
+  '0x60b647fffe5335e2':
+    friendly_name: bathroom_fan
+  '0xe0798dfffecc938a':
+    friendly_name: kid_bathroom_climate
+  '0xe0798dfffecc830e':
+    friendly_name: master_bathroom_climate
+  '0xa4c13867e6ec9234':
+    friendly_name: '0xa4c13867e6ec9234'
+  '0xa4c13880651dc2f9':
+    friendly_name: fridge
+  '0xf4b3b1fffe94fdda':
+    friendly_name: master_wardrobe_climate
+    homeassistant: {}
+    optimistic: true
+    retain: true
+  '0x3410f4fffec40a92':
+    friendly_name: cabinet_zigbee_repeater
+  '0xa4c138ac2e0ed3ed':
+    friendly_name: dishwasher
+  '0xa4c138aa7b9ce7bf':
+    friendly_name: '0xa4c138aa7b9ce7bf'
+  '0xa4c138d695d32ff4':
+    friendly_name: '0xa4c138d695d32ff4'
+  '0xa4c13824ecc4ed30':
+    friendly_name: '0xa4c13824ecc4ed30'
+  '0xa4c1381acb247964':
+    friendly_name: '0xa4c1381acb247964'
+  '0xa4c138285b382c11':
+    friendly_name: '0xa4c138285b382c11'
+  '0xa4c1385c65126c30':
+    friendly_name: '0xa4c1385c65126c30'
+  '0xa4c138ef40675ea6':
+    friendly_name: '0xa4c138ef40675ea6'
+  '0xa4c138b9501adc7a':
+    friendly_name: '0xa4c138b9501adc7a'
+advanced:
+  pan_id: 6754
+  log_level: debug
+external_converters:
+  - converters/TS0601.js
