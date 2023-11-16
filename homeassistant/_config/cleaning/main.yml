@@ -133,3 +133,38 @@ script:
         target:
           entity_id: vacuum.bruce
       
+automation:
+- id: clean_bathroom
+  alias: "Прибрати ванну"
+  trigger:
+    - platform: state
+      entity_id: sensor.kid_bathroom_button_action
+      to: single
+      variables:
+        bathroom_id: child_bathroom
+    - platform: state
+      entity_id: sensor.master_bathroom_button_action
+      to: single
+      variables:
+        bathroom_id: master_bathroom
+  action:
+    - service: script.vacuum_clean
+      data:
+        rooms: 
+          - "{{ bathroom_id }}"
+  mode: single
+
+- id: clean_zone
+  alias: "Прибрати зону"
+  trigger:
+    - platform: state
+      entity_id: sensor.fireplace_button_action
+      to: single
+      variables:
+        zone_name: fireplace
+  action:
+    - service: script.vacuum_clean_zone
+      data:
+        zones:
+          - "{{ zone_name }}"
+  mode: single

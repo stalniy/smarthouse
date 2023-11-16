@@ -1,5 +1,5 @@
 house_temp_desired = float(hass.states.get('sensor.house_max_temp_desired').state)
-if hass.states.get('binary_sensor.is_day').state == 'off':
+if hass.states.get('binary_sensor.is_day_heating_time').state == 'off':
     house_temp_desired = house_temp_desired - float(hass.states.get('input_number.night_shift_temp_desired').state)
 temp_outside = -10 # TODO: get temp from ouside
 heating_curve_factor = 0.7 # TODO: setup heating curve

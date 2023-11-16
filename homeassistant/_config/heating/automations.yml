@@ -61,3 +61,96 @@
       target:
         entity_id: input_number.heating_last_flowtemp
   mode: restart 
+
+- id: enable_heating
+  alias: Керування опаленням по часу
+  trigger:
+    - platform: time
+      at: '23:30'
+      variables:
+        heating_state: 'on'
+    - platform: time
+      at: '07:00'
+      variables:
+        heating_state: 'off'
+    - platform: time
+      at: '12:00'
+      variables: 
+        heating_state: 'on'
+    - platform: time
+      at: '15:00'
+      variables: 
+        heating_state: 'off'
+  action:
+    - service_template: switch.turn_{{ heating_state }}
+      entity_id: switch.ebusd_bai_heatingswitch_onoff
+
+- id: enable_hot_floor_pump
+  alias: Ввімкнути насос теплої підлоги (ТП)
+  trigger:
+    - id: solar_on
+      type: power
+      platform: device
+      device_id: 26ffd1f44a4fa883a5346115b3592da0
+      entity_id: sensor.power_production_now
+      domain: sensor
+      above: 1000
+    - id: heater_on
+      platform: state
+      entity_id: switch.ebusd_bai_heatingswitch_onoff
+      to: "on"
+    - platform: numeric_state
+      entity_id: sensor.fireplace_fan_power
+      above: 1
+  action:
+    - alias: Enable pump
+      service_template: switch.turn_on
+      entity_id: switch.hot_floor_pump
+  mode: single
+
+- id: disable_hot_floor_pump
+  alias: Вимкнути насос теплої підлоги (ТП)
+  trigger:
+    - id: solar_off
+      type: power
+      platform: device
+      device_id: 26ffd1f44a4fa883a5346115b3592da0
+      entity_id: sensor.power_production_now
+      domain: sensor
+      below: 999
+      variables:
+        scheduled_disabling: false
+    - id: heater_off
+      platform: state
+      entity_id: switch.ebusd_bai_heatingswitch_onoff
+      to: "off"
+      variables:
+        scheduled_disabling: true
+    - platform: time
+      at: input_datetime.disable_hot_floor_pump_at
+      variables:
+        scheduled_disabling: false
+    - platform: numeric_state
+      entity_id: sensor.fireplace_fan_power
+      below: 1
+      variables:
+        scheduled_disabling: true
+  condition:
+    - condition: template
+      value_template: "{{ states('switch.ebusd_bai_heatingswitch_onoff') == 'off' }}"
+  action:
+    - if: 
+        - condition: template
+          value_template: "{{ scheduled_disabling }}"
+      then:
+        - alias: Schedule pump disabling
+          service: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.disable_hot_floor_pump_at
+          data:
+            timestamp: "{{ now().timestamp() + 2 * 60 * 60 }}"
+      else:
+      - alias: Disable pump
+        service_template: switch.turn_off
+        entity_id: switch.hot_floor_pump
+  mode: single

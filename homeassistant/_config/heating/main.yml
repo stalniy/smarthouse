@@ -120,6 +120,13 @@ input_number:
     icon: mdi:thermometer
     unit_of_measurement: °C
 
+input_datetime: 
+  disable_hot_floor_pump_at:
+    name: Час вимкнення насос гарячої підлоги
+    icon: mdi:clock
+    has_date: true
+    has_time: true
+
 template:
   - sensor:
     - name: main_heater_current_power
@@ -172,4 +179,7 @@ template:
           {{ states('input_number.heating_last_flowtemp') }}
         {% endif %}
       unit_of_measurement: °C
-      
+  - binary_sensor: 
+    - name: is_day_heating_time
+      state: "{{ 5 <= now().hour <= 21 }}"
+ 

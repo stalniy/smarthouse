@@ -4,11 +4,11 @@ frontend: true
 mqtt:
   base_topic: zb2mqtt
   server: mqtt://homeassistant.lan
+  user: homeman
+  password: a92TaekCAKYc!
 devices:
   '0xdc8e95fffe15d3e7':
     friendly_name: master_bathroom
-  '0xdc8e95fffe19a5e2':
-    friendly_name: hot_floor_pump
   '0xdc8e95fffe1e3877':
     friendly_name: kid_bathroom
   '0x385b44fffe1b2520':
@@ -33,8 +33,6 @@ devices:
     friendly_name: kid_bathroom_climate
   '0xe0798dfffecc830e':
     friendly_name: master_bathroom_climate
-  '0xa4c13867e6ec9234':
-    friendly_name: '0xa4c13867e6ec9234'
   '0xa4c13880651dc2f9':
     friendly_name: fridge
   '0xf4b3b1fffe94fdda':
@@ -62,6 +60,50 @@ devices:
     friendly_name: '0xa4c138ef40675ea6'
   '0xa4c138b9501adc7a':
     friendly_name: '0xa4c138b9501adc7a'
+  '0xa4c13867e6ec9234':
+    friendly_name: heater_valves
+  '0xa4c138ce682ec97e':
+    friendly_name: hot_floor_pump
+  '0xa4c13802a9df891a':
+    friendly_name: fireplace_fan
+  '0xa4c138f5d530afd4':
+    friendly_name: doghouse_climate
+  '0xa4c1389dd3983dd2':
+    friendly_name: livingroom_outside_curtain_1
+    invert_cover: false
+  '0x00124b0022ed0b7f':
+    friendly_name: cabinet_map_light
+    color_sync: false
+    transition: 0
+    homeassistant: {}
+    optimistic: true
+    qos: 1
+  '0xa4c13894f4dbe43b':
+    friendly_name: living_room_outside_curtain_2
+  '0xa4c1387abb3d7da0':
+    friendly_name: kitchen_outside_curtain
+  '0xf4b3b1fffe9922f8':
+    friendly_name: livingroom_climate
+  '0xa4c138e918dcb971':
+    friendly_name: kid_bathroom_button
+  '0xa4c1388c226303c4':
+    friendly_name: master_bathroom_button
+  '0xa4c138700aa8a343':
+    friendly_name: cameras_outside_power
+  '0xdc8e95fffe19a5eb':
+    friendly_name: curtain_outside_power
+  '0xa4c1387555bb5cde':
+    friendly_name: terrace_outside_curtain
+  '0xa4c1386338cbc1c5':
+    friendly_name: kid_small_outside_curtain
+  '0xa4c13895caeacd23':
+    friendly_name: kid_big_outside_curtain
+  '0xa4c1386f295ba842':
+    friendly_name: cabinet_curtaine_outside
+  '0xa4c1389e40e945ff':
+    friendly_name: master_bedroom_outside_curtain
+  '0xa4c138fa677c9617':
+    friendly_name: fireplace_button
 advanced:
   pan_id: 6754
   log_level: debug
