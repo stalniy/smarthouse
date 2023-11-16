@@ -9,6 +9,8 @@
     - service: input_datetime.set_datetime
       data:   
         timestamp: "{{ now().timestamp() }}"
+      target:
+        entity_id: input_datetime.back_home_at
   mode: single
 
 - id: sync_device_state_with_input

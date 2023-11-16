@@ -137,38 +137,6 @@
     service_template: switch.turn_{{ light_state }}
     alias: Toggle light
   mode: single
-- id: '1686398557380'
-  alias: Керування насосом ТП
-  description: ''
-  trigger:
-  - type: power
-    platform: device
-    device_id: 26ffd1f44a4fa883a5346115b3592da0
-    entity_id: sensor.power_production_now
-    domain: sensor
-    above: 1000
-    variables:
-      pump_state: 'on'
-  - type: power
-    platform: device
-    device_id: 26ffd1f44a4fa883a5346115b3592da0
-    entity_id: sensor.power_production_now
-    domain: sensor
-    below: 999
-    variables:
-      pump_state: 'off'
-  - platform: state
-    entity_id:
-    - switch.main_heater
-    to: 'on'
-    variables:
-      pump_state: 'on'
-  condition: []
-  action:
-  - alias: Toggle pump
-    service_template: switch.turn_{{ pump_state }}
-    entity_id: switch.hot_floor_pump
-  mode: single
 - id: '1686459780356'
   alias: Повідомлення про розряджені девайси
   description: ''
