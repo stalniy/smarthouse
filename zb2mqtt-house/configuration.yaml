@@ -74,10 +74,11 @@ devices:
   '0x00124b0022ed0b7f':
     friendly_name: cabinet_map_light
     color_sync: false
-    transition: 0
+    transition: 1
     homeassistant: {}
     optimistic: true
     qos: 1
+    state_action: false
   '0xa4c13894f4dbe43b':
     friendly_name: living_room_outside_curtain_2
   '0xa4c1387abb3d7da0':
@@ -104,6 +105,10 @@ devices:
     friendly_name: master_bedroom_outside_curtain
   '0xa4c138fa677c9617':
     friendly_name: fireplace_button
+  '0xa4c13824d6b2e4b3':
+    friendly_name: washing_machine
+  '0xa4c13845a6713fc4':
+    friendly_name: dryer
 advanced:
   pan_id: 6754
   log_level: debug

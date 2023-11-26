@@ -8,6 +8,7 @@ __pycache__
 
 logs
 *.log
+*.log.1
 *.uuid
 *.conf
 *.db
@@ -31,3 +32,4 @@ logs
 /zb2mqtt-house/log
 
 /.env
+/postgres

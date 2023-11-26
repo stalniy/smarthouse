@@ -69,3 +69,8 @@ lovelace:
   resources:
     - url: /hacsfiles/lovelace-multiple-entity-row/multiple-entity-row.js
       type: module
+
+recorder:
+  auto_purge: false
+  auto_repack: false
+  db_url: !secret recorder_db_url
