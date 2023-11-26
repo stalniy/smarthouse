@@ -12,6 +12,18 @@ services:
     devices:
       - /dev/snd:/dev/snd
 
+  postgres:
+    container_name: postgres
+    image: postgres:16.1
+    restart: unless-stopped
+    ports: 
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=$PG_PASSWD
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - /home/homeman/smarthome/postgres/data:/var/lib/postgresql/data
+
   zb2mqtt-house: 
     container_name: zb2mqtt-house
     image: koenkk/zigbee2mqtt:1.32.1
