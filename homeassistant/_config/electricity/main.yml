@@ -62,5 +62,13 @@ template:
     sensor:
       - name: energy_tariff
         state: "{{ 'day' if 7 <= (now() | as_local).hour < 23 else 'night' }}"
+  - binary_sensor:
+      - name: has_connection_to_main
+        state: | 
+          {{ 
+            states('sensor.power_consumption_voltage_x') != 'unknown' and
+            states('sensor.power_consumption_voltage_y') != 'unknown' and
+            states('sensor.power_consumption_voltage_z') != 'unknown'
+          }}
 
 automation: !include ./automations.yml

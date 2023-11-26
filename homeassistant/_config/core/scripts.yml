@@ -1,0 +1,42 @@
+toggle_curtain_outside:
+  alias: Toggle outside curtains
+  mode: restart
+  icon: mdi:curtains-closed
+  description: |
+    Toggle all outside curtains
+  fields:
+    cover_state:
+      name: State
+      required: true
+      selector:
+        boolean:
+  sequence:
+  - service_template: "{{ 'cover.open_cover' if cover_state else 'cover.close_cover' }}"
+    target:
+      entity_id:
+        - cover.livingroom_outside_curtain_1
+        - cover.livingroom_outside_curtain_2
+        - cover.kitchen_outside_curtain
+        - cover.terrace_outside_curtain
+        - cover.kid_small_outside_curtain
+        - cover.kid_big_outside_curtain
+        - cover.cabinet_curtaine_outside
+        - cover.master_bedroom_outside_curtain
+
+toggle_livingroom_watching_mode:
+  alias: Toggle watching mode in living room
+  mode: restart
+  icon: mdi:television
+  fields:
+    watching_state:
+      name: State
+      required: true
+      selector:
+        boolean:
+  sequence:
+  - service_template: "{{ 'cover.open_cover' if watching_state else 'cover.close_cover' }}"
+    target:
+      entity_id:
+        - cover.livingroom_outside_curtain_1
+        - cover.livingroom_outside_curtain_2
+
