@@ -23,3 +23,5 @@ sensor:
         value_template: "{{ (states('input_datetime.back_home_at') | as_datetime | as_local) + timedelta(minutes=10) }}"
         
 automation: !include ./automations.yml
+
+script: !include ./scripts.yml
