@@ -63,49 +63,6 @@
     entity_id:
     - switch.hot_water_pump
     alias: Ввікнути/Вимкнути насос ГВП
-- id: '1686211132458'
-  alias: Керування бойлером
-  description: ''
-  trigger:
-  - type: energy
-    platform: device
-    device_id: 26ffd1f44a4fa883a5346115b3592da0
-    entity_id: sensor.energy_current_hour
-    domain: sensor
-    above: 1.5
-    variables:
-      heater_state: 'on'
-  - type: energy
-    platform: device
-    device_id: 26ffd1f44a4fa883a5346115b3592da0
-    entity_id: sensor.energy_current_hour
-    domain: sensor
-    below: 1.5
-    variables:
-      heater_state: 'off'
-  - platform: time
-    at: 05:00:00
-    variables:
-      heater_state: 'on'
-  - platform: time
-    at: 05:50:00
-    variables:
-      heater_state: 'off'
-  - platform: state
-    entity_id: input_boolean.force_water_heater
-    variables:
-      heater_state: '{{ trigger.to_state.state }}'
-  condition:
-  - condition: template
-    value_template: '{{ heater_state == "off" and states("sensor.energy_current_hour")
-      | float(0.0) < 2 or heater_state == "on" }}
-
-      '
-  action:
-  - alias: Ввікнути/Вимкнути бойлер
-    service_template: switch.turn_{{ heater_state }}
-    entity_id: switch.water_heater_2k
-  mode: single
 - id: '1686369648689'
   alias: Керування освітлення гаража
   description: ''
@@ -152,51 +109,6 @@
       message: Є девайси що розрядились нижче 15%
       title: Розряджені девайси!
   mode: single
-- id: '1687142185577'
-  alias: Ручне керування бойлером
-  description: ''
-  trigger:
-  - platform: device
-    type: turned_off
-    device_id: 39eeedbff766a6e6a7a5f477323810d5
-    entity_id: light.kid_bathroom
-    domain: light
-    for:
-      hours: 0
-      minutes: 5
-      seconds: 0
-  - platform: device
-    type: turned_off
-    device_id: 7963b61108aaeabc04743970d4f37081
-    entity_id: light.master_bathroom
-    domain: light
-    for:
-      hours: 0
-      minutes: 5
-      seconds: 0
-  - platform: event
-    event_type: heater_force_on
-  condition: []
-  action:
-  - service: "{% if trigger.platform == \"event\" %}\n  input_boolean.turn_on\n{%
-      elif states(\"light.master_bathroom\") == \"off\" and states(\"light.kid_bathroom\")
-      == \"off\" %}\n  input_boolean.turn_off\n{% endif %}\n"
-    data: {}
-    target:
-      entity_id: input_boolean.force_water_heater
-  - condition: state
-    entity_id: input_boolean.force_water_heater
-    state: 'on'
-  - delay:
-      hours: 1
-      minutes: 0
-      seconds: 0
-      milliseconds: 0
-  - service: input_boolean.turn_off
-    data: {}
-    target:
-      entity_id: input_boolean.force_water_heater
-  mode: restart
 - id: '1687463732202'
   alias: 'Serhii: telegram bot based home presence'
   description: ''

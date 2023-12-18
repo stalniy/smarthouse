@@ -219,3 +219,44 @@
     - service_template: "switch.turn_{{ 'off' if trigger.to_state.state == 'on' else 'on' }}"
       target:
         entity_id: "{{ valve_switch_entity_id | list }}"
+
+- id: control_hwc
+  alias: Керування бойлером
+  trigger:
+    - type: energy
+      platform: device
+      device_id: 26ffd1f44a4fa883a5346115b3592da0
+      entity_id: sensor.energy_current_hour
+      domain: sensor
+      above: 1.5
+      variables:
+        heater_state: "on"
+    - type: energy
+      platform: device
+      device_id: 26ffd1f44a4fa883a5346115b3592da0
+      entity_id: sensor.energy_current_hour
+      domain: sensor
+      below: 1.5
+      variables:
+        heater_state: "off"
+    - platform: time
+      at: "03:00:00"
+      variables:
+        heater_state: "on"
+    - platform: time
+      at: "05:50:00"
+      variables:
+        heater_state: "off"
+  action:
+    - if:
+        - condition: template
+          value_template: "{{ now().strftime('%a') == 'Sat' and trigger.platform == 'time' }}"
+      then:
+        - service_template: "switch.turn_{{ heater_state }}"
+          target:
+            entity_id: switch.ebusd_bai_hwcswitch_onoff
+      else:
+        - alias: Ввімкнути/Вимкнути бойлер
+          service_template: switch.turn_{{ heater_state }}
+          entity_id: switch.water_heater_2k
+  mode: restart

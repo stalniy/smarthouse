@@ -103,7 +103,7 @@ script:
       data:
         message: |
           Брюс почав прибирання:
-          {{ rooms | join("\n") }}
+          {{ rooms | join("\n") | replace('_', '\_') }}
     - service: vacuum.send_command
       data:
         command: app_segment_clean
