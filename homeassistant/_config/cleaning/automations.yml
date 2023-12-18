@@ -85,7 +85,7 @@
           data:
             message: |
               Час поприбирати зміщено на коли Ви покинете будинок. Буде прибрано:
-              - {{ states('sensor.rooms_to_clean_today') | from_json | join('\n -') }}
+              - {{ states('sensor.rooms_to_clean_today') | from_json | join('\n -') | replace('_', '\_') }}
               Щоб прибрати зараз тисни /clean\_house
           alias: Сповіщення про прибирання
   mode: single
