@@ -2,37 +2,46 @@ input_boolean:
   skip_child_zone: 
     name: Не прибирати дитячу зону у вітальні
 
+input_datetime:
+  last_cleaned_at:
+    name: Дата останнього прибрання
+    has_date: true
+    has_time: false
+
 template: 
   - sensor:
     - name: rooms_to_clean_today
       state: >-
-        {% set rooms_to_always_clean = [
+        {% set rooms_to_clean = [
           "hall",
           "coming_room",
           "living_room_table",
           "kitchen"
         ] %} 
+        {% set week_day = now().isoweekday() %}
         
-        {% if now().isoweekday() % 2 == 0 %} 
-          {% set rooms_to_clean = rooms_to_always_clean + [
+        {% if week_day % 2 == 0 or week_day == 6 %} 
+          {% set rooms_to_clean = rooms_to_clean + [
             "bedroom_kid_small",
             "bedroom_kid_big",
             "child_bathroom"
           ]%}
 
-          {% if states('input_boolean.skip_child_zone') == 'on' %}
-            {{ rooms_to_clean }}
-          {% else %}
-            {{ rooms_to_clean + ["living_room_entertainment"] }}
+          {% if states('input_boolean.skip_child_zone') == 'off' %}
+            {% set rooms_to_clean = rooms_to_clean + ["living_room_entertainment"] %}
           {% endif %}
-        {% else %}
-          {{ rooms_to_always_clean + [
+        {% endif %}
+
+        {% if week_day % 2 != 0 or week_day == 6 %}
+          {% set rooms_to_clean = rooms_to_clean + [
             "master_bathroom",
             "master_bedroom",
             "wardrobe",
             "cabinet"
-          ]}}
+          ]%}
         {% endif %}
+
+        {{ rooms_to_clean | to_json }}
 
 script:
   vacuum_clean:
@@ -49,6 +58,7 @@ script:
           select:
             multiple: true
             options:
+            - ALL
             - bedroom_kid_small
             - bedroom_kid_big
             - cabinet
@@ -64,7 +74,7 @@ script:
     variables:
       roomsIds: |
         {% 
-          set roomsNamesToIds = [
+          set all_rooms = [
             { "label": "bedroom_kid_small", "id": 16 },
             { "label": "bedroom_kid_big", "id": 17 },
             { "label": "cabinet", "id": 18 },
@@ -79,15 +89,21 @@ script:
             { "label": "hall", "id": 22 }
           ]
         %} 
-        {{ roomsNamesToIds 
-          | selectattr('label', 'in', rooms)
-          | map(attribute="id")
-          | list 
-        }}
+        {% if 'ALL' in rooms %}
+          {{ all_rooms | map(attribute="id") | list }}
+        {% else %}
+          {{ all_rooms 
+            | selectattr('label', 'in', rooms)
+            | map(attribute="id")
+            | list 
+          }}
+        {% endif %}
     sequence:
     - service: notify.telegram_serhii
       data:
-        message: 'Брюс почав прибирання: {{ rooms }}'
+        message: |
+          Брюс почав прибирання:
+          {{ rooms | join("\n") }}
     - service: vacuum.send_command
       data:
         command: app_segment_clean
@@ -109,12 +125,14 @@ script:
             options:
               - terrace_exit
               - fireplace
+              - livingroom_entertainment
     variables:  
       zones_coords: |
         {% 
           set coords = [
+            { "label": "livingroom_entertainment", "value": [24100,25160,27340,28220] },
             { "label": "terrace_exit", "value": [26033,25167,27317,27283] },
-            { "label": "fireplace", "value": [21500,25767,24533,26517] }
+            { "label": "fireplace", "value": [21825,25800,24350,27350] }
           ]
         %}
         {{ coords 
@@ -133,38 +151,4 @@ script:
         target:
           entity_id: vacuum.bruce
       
-automation:
-- id: clean_bathroom
-  alias: "Прибрати ванну"
-  trigger:
-    - platform: state
-      entity_id: sensor.kid_bathroom_button_action
-      to: single
-      variables:
-        bathroom_id: child_bathroom
-    - platform: state
-      entity_id: sensor.master_bathroom_button_action
-      to: single
-      variables:
-        bathroom_id: master_bathroom
-  action:
-    - service: script.vacuum_clean
-      data:
-        rooms: 
-          - "{{ bathroom_id }}"
-  mode: single
-
-- id: clean_zone
-  alias: "Прибрати зону"
-  trigger:
-    - platform: state
-      entity_id: sensor.fireplace_button_action
-      to: single
-      variables:
-        zone_name: fireplace
-  action:
-    - service: script.vacuum_clean_zone
-      data:
-        zones:
-          - "{{ zone_name }}"
-  mode: single
+automation: !include ./automations.yml

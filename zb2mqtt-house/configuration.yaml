@@ -77,14 +77,17 @@ devices:
     transition: 1
     homeassistant: {}
     optimistic: true
-    qos: 1
+    qos: 0
     state_action: false
+    filtered_cache:
+      - linkquality
+    retain: false
   '0xa4c13894f4dbe43b':
-    friendly_name: living_room_outside_curtain_2
+    friendly_name: livingroom_outside_curtain_2
   '0xa4c1387abb3d7da0':
     friendly_name: kitchen_outside_curtain
   '0xf4b3b1fffe9922f8':
-    friendly_name: livingroom_climate
+    friendly_name: living_room_climate
   '0xa4c138e918dcb971':
     friendly_name: kid_bathroom_button
   '0xa4c1388c226303c4':
@@ -109,8 +112,16 @@ devices:
     friendly_name: washing_machine
   '0xa4c13845a6713fc4':
     friendly_name: dryer
+  '0x94deb8fffec54871':
+    friendly_name: master_remote_control
+  '0xe0798dfffecc7471':
+    friendly_name: kid_big_climate
+  '0xe0798dfffecc85aa':
+    friendly_name: cabinet_climate
 advanced:
   pan_id: 6754
   log_level: debug
 external_converters:
   - converters/TS0601.js
+serial:
+  port: tcp://192.168.88.131:6638

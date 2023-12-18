@@ -46,12 +46,12 @@ toggle_home_state_from_car:
           entity_id: person.serhii
           state: not_home
       then:
-        - service: switch.turn_on
-          entity_id: switch.garage_gates_left_open
         - service: device_tracker.see
           data:
             dev_id: serhii_phone_shortcut
             location_name: home
+        - service: switch.turn_on
+          entity_id: switch.garage_gates_left_open
       else:
         - service: device_tracker.see
           data:

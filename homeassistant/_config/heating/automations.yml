@@ -2,12 +2,20 @@
   alias: Синхронізація температур нагріву через Ebus
   trigger:
     - platform: time_pattern
-      minutes: "/5"
+      minutes: "/3"
     - platform: state
       entity_id: 
         - switch.ebusd_bai_heatingswitch_onoff
         - switch.ebusd_bai_hwcswitch_onoff
         - input_number.main_heater_storage_temp_desired 
+  condition:
+    - condition: template
+      value_template: |
+        {{ 
+          trigger.platform == 'state' or
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') or
+          is_state('switch.ebusd_bai_hwcswitch_onoff', 'on')
+        }}
   action:
     - service: python_script.heating_ebus_sync
   mode: single
@@ -33,7 +41,7 @@
   trigger:
     - platform: numeric_state
       entity_id: sensor.ebusd_bai_waterpressure_press
-      above: 2.2
+      above: 2.5
     - platform: numeric_state
       entity_id: sensor.ebusd_bai_waterpressure_press
       below: 1.2
@@ -73,10 +81,10 @@
       at: '07:00'
       variables:
         heating_state: 'off'
-    - platform: time
-      at: '12:00'
-      variables: 
-        heating_state: 'on'
+    # - platform: time
+    #   at: '12:00'
+    #   variables: 
+    #     heating_state: 'on'
     - platform: time
       at: '15:00'
       variables: 
@@ -84,6 +92,12 @@
   action:
     - service_template: switch.turn_{{ heating_state }}
       entity_id: switch.ebusd_bai_heatingswitch_onoff
+    - if:
+      - condition: template
+        value_template: "{{ heating_state == 'off' and states('switch.ebusd_bai_hwcswitch_onoff') == 'on' }}"
+      then:
+      - service: switch.turn_off
+        entity_id: switch.ebusd_bai_hwcswitch_onoff
 
 - id: enable_hot_floor_pump
   alias: Ввімкнути насос теплої підлоги (ТП)
@@ -154,3 +168,54 @@
         service_template: switch.turn_off
         entity_id: switch.hot_floor_pump
   mode: single
+
+- id: control_heating_valves
+  alias: Керування кранами опалення в залежності від температури
+  mode: parallel
+  max: 20
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_master_bedroom
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_master_bedroom]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_master_bathroom
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_master_bathroom_hot_floor]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_cabinet
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_cabinet]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_kid_small_bedroom
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_kid_small_bedroom]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_kid_big_bedroom
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_kid_big_bedroom]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_kid_bathroom
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_hall_and_small_bathroom]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_living_room
+      variables:
+        valve_switch_entity_id: 
+          - switch.heater_valve_livingroom
+          # - switch.heater_valve_hot_floor_livingroom3
+          - switch.heater_valve_hot_floor_livingroom2
+          - switch.heater_valve_hot_floor_livingroom1
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_kitchen
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_kitchen_hot_floor]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_entrance_or_tech_room
+      variables:
+        valve_switch_entity_id: [switch.heater_valve_hot_floor_entrance_tech_room]
+  action:
+    # normal open valves require power to close the valve
+    - service_template: "switch.turn_{{ 'off' if trigger.to_state.state == 'on' else 'on' }}"
+      target:
+        entity_id: "{{ valve_switch_entity_id | list }}"

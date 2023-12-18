@@ -21,6 +21,12 @@ sensor:
       some_time_at_home_passed:
         device_class: timestamp
         value_template: "{{ (states('input_datetime.back_home_at') | as_datetime | as_local) + timedelta(minutes=10) }}"
+  - platform: mqtt_room
+    device_id: "sd:0xfd44"
+    name: Car
+    state_topic: 'espresense/devices/sd:0xfd44'
+    timeout: 10
+    away_timeout: 10
         
 automation: !include ./automations.yml
 
