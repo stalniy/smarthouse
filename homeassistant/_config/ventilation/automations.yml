@@ -172,3 +172,21 @@
     - service_template: "fan.turn_{{ 'on' if states('switch.bathroom_fan') == 'on' else 'off' }}"
       entity_id: fan.wardrobes
       alias: Ввікнути/Вимкнути вентиляцію
+
+# - id: enable_kitchen_fan_light
+#   trigger:
+#     - platform: state
+#       entity_id: binary_sensor.kitchen_cooking_stove
+#       to: "on"
+#     - platform: state
+#       entity_id: binary_sensor.kitchen_cooking_stove
+#       to: "off"
+#       for: 00:01:00
+  # condition:
+  #   - condition: template
+  #     value_template: |
+  #       {{ now().timestamp() >= (states('sensor.dark_time_starts_at') | float) }}
+  # action:
+  #   - service: script.kitchen_fan_control
+  #     data:
+  #       command: toggle_light

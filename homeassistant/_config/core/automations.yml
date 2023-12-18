@@ -35,3 +35,27 @@
       data:
         dev_id: serhii_phone_shortcut
         location_name: "{{ states('input_text.serhii_phone_shortcut') }}"
+
+- id: toggle_kitchen_light
+  alias:  Керуванням світла в кухні
+  trigger: 
+    - platform: state
+      entity_id: binary_sensor.livingroom_kitchenoccupancy
+      to: "on"
+    - platform: state
+      entity_id: binary_sensor.livingroom_kitchenoccupancy
+      to: "off"
+      for: 00:00:05
+  condition:
+    - condition: template
+      value_template: | 
+        {{ 
+            trigger.to_state.state == 'on' and (
+              states('sun.sun') == 'below_horizon' or 
+              states('sensor.livingroom_light_level') | float <= 40
+            ) or trigger.to_state.state == 'off'
+        }}
+  action:
+    - service_template: "light.turn_{{states('binary_sensor.livingroom_kitchenoccupancy')}}"
+      target:
+        entity_id: light.kitchen_light

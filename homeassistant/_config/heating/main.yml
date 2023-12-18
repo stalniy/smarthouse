@@ -79,16 +79,8 @@ input_number:
     step: 1
     icon: mdi:home-thermometer
     unit_of_measurement: °C
-  tech_room_temp_desired:
-    name: Тех. кімната
-    initial: 18
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  entrance_room_temp_desired:
-    name: Прихожа
+  entrance_and_tech_room_temp_desired:
+    name: Прихожа і тех. кімната
     initial: 18
     min: 5
     max: 25
@@ -155,10 +147,17 @@ template:
           | join(',\n')
         %}
         {{ 'none' if result == '' else result }}
+    - name: current_temp_shift_desired
+      state: |
+        {% if is_state('binary_sensor.is_day_heating_time', 'on') %}
+          0
+        {% else %}
+          {{ states('input_number.night_shift_temp_desired') }}
+        {% endif %}
+      unit_of_measurement: °C
     - name: house_max_temp_desired
       state: | 
-        {{
-          [
+        {% set temp_desired = [
             states('input_number.master_bedroom_temp_desired'),
             states('input_number.master_bathroom_temp_desired'),
             states('input_number.cabinet_temp_desired'),
@@ -167,10 +166,10 @@ template:
             states('input_number.kid_bathroom_temp_desired'),
             states('input_number.kitchen_temp_desired'),
             states('input_number.living_room_temp_desired'),
-            states('input_number.tech_room_temp_desired'),
-            states('input_number.entrance_room_temp_desired'),
-          ] | max
-        }}
+            states('input_number.entrance_and_tech_room_temp_desired'),
+          ] | max | float
+        %}
+        {{ temp_desired - states('sensor.current_temp_shift_desired') | float }}
     - name: heating_flow_temperature
       state: |
         {% if states('sensor.ebusd_bai_positionvalveset') == 'Heating' %}
@@ -179,7 +178,132 @@ template:
           {{ states('input_number.heating_last_flowtemp') }}
         {% endif %}
       unit_of_measurement: °C
+
   - binary_sensor: 
     - name: is_day_heating_time
       state: "{{ 5 <= now().hour <= 21 }}"
- 
+  
+  - binary_sensor:
+    - name: requires_heating_in_master_bedroom
+      state: |
+        {% set temp_desired = states('input_number.master_bedroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = states('sensor.master_bedroom_climate_temperature') | float %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_master_bathroom
+      state: |
+        {% set temp_desired = states('input_number.master_bathroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = states('sensor.master_bathroom_climate_temperature') | float %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_cabinet
+      state: |
+        {% set temp_desired = states('input_number.cabinet_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = states('sensor.cabinet_climate_temperature') | float %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_kid_small_bedroom
+      state: |
+        {% set temp_desired = states('input_number.kid_small_bedroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = 30 %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_kid_big_bedroom
+      state: |
+        {% set temp_desired = states('input_number.kid_big_bedroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = states('sensor.kid_big_bedroom_climate_temperature') | float %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_kid_bathroom
+      state: |
+        {% set temp_desired = states('input_number.kid_bathroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = states('sensor.kid_bathroom_climate_temperature') | float %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_living_room
+      state: |
+        {% set temp_desired = states('input_number.living_room_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = states('sensor.living_room_climate_temperature') | float %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_kitchen
+      state: |
+        {% set temp_desired = states('input_number.kitchen_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = 10 %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating_in_entrance_or_tech_room
+      state: |
+        {% set temp_desired = states('input_number.entrance_and_tech_room_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
+        {% set temp_current = 10 %}
+        {{ temp_current < temp_desired }}
+    - name: requires_heating
+      state: |
+        {{
+          is_state('binary_sensor.requires_heating_in_master_bedroom', 'on') or 
+          is_state('binary_sensor.requires_heating_in_master_bathroom', 'on') or 
+          is_state('binary_sensor.requires_heating_in_cabinet', 'on') or 
+          is_state('binary_sensor.requires_heating_in_kid_small_bedroom', 'on') or 
+          is_state('binary_sensor.requires_heating_in_kid_big_bedroom', 'on') or 
+          is_state('binary_sensor.requires_heating_in_kid_bathroom', 'on') or 
+          is_state('binary_sensor.requires_heating_in_living_room', 'on') or 
+          is_state('binary_sensor.requires_heating_in_kitchen', 'on') or 
+          is_state('binary_sensor.requires_heating_in_entrance_or_tech_room', 'on') 
+        }}
+  
+  - binary_sensor:
+    - name: heating_valve_open_master_bedroom
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_master_bedroom', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_master_bathroom
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_master_bathroom', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_cabinet
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_cabinet', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_kid_small_bedroom
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_kid_small_bedroom', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_kid_big_bedroom
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_kid_big_bedroom', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_kid_bathroom
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_kid_bathroom', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_living_room
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_living_room', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_kitchen
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_kitchen', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
+    - name: heating_valve_open_entrance_or_tech_room
+      state: |
+        {{ 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'off') or
+          is_state('binary_sensor.requires_heating_in_entrance_or_tech_room', 'on') and 
+          is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
+        }}
