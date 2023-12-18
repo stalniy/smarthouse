@@ -18,7 +18,7 @@
         }}
   action:
     - service: python_script.heating_ebus_sync
-  mode: single
+  mode: restart
 
 - id: notify_about_heating
   alias: 'Нотифікація про включення нагріву'
