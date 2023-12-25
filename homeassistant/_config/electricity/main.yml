@@ -50,6 +50,14 @@ template:
       state: |
         {{ states('sensor.monthly_energy_day_cost') | float + states('sensor.monthly_energy_night_cost') | float }}
       unit_of_measurement: UAH
+    - name: energy_cost
+      state_class: measurement
+      state: >-
+        {% if states('sensor.energy_tariff') == 'day' %}
+          {{ states('input_number.energy_consumption_day_cost') | float }}
+        {% else %}
+          {{ states('input_number.energy_consumption_day_cost') | float }}
+        {% endif %}
   - trigger:
       - platform: time
         at: '07:00:00'

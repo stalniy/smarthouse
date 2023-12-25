@@ -118,6 +118,12 @@ devices:
     friendly_name: kid_big_climate
   '0xe0798dfffecc85aa':
     friendly_name: cabinet_climate
+  '0xe0798dfffecc8576':
+    friendly_name: '0xe0798dfffecc8576'
+  '0xa4c13874ed7dc3c1':
+    friendly_name: kitchen_socket_left1
+  '0xa4c1389fc38ce599':
+    friendly_name: kitchen_table_light
 advanced:
   pan_id: 6754
   log_level: debug

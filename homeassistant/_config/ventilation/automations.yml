@@ -120,11 +120,15 @@
             timestamp: 1
           alias: Reset dates
 
-- alias: Керування витяжкою в кухні
+- id: toggle_kitchen_ventillation
+  alias: Керування витяжкою в кухні
   trigger:
     - platform: numeric_state
-      entity_id: sensor.kitchen_stove_power
-      above: 10
+      entity_id: 
+        - sensor.kitchen_stove_power
+        - sensor.kitchen_socket_left1_power
+      value_template: "{{ state.attributes.current | float }}"
+      above: 0.0001
       variables:
         turn_off_at: 1
         fan_command: speed_fast
@@ -133,10 +137,13 @@
         minutes: 0
         seconds: 10
     - platform: numeric_state
-      entity_id: sensor.kitchen_stove_power
-      below: 1
+      entity_id: 
+        - sensor.kitchen_stove_power
+        - sensor.kitchen_socket_left1_power
+      value_template: "{{ state.attributes.current | float }}"
+      below: 0.0001
       variables:
-        turn_off_at: "{{ now().timestamp() + 10 * 60 }}"
+        turn_off_at: "{{ now().timestamp() + 5 * 60 }}"
         fan_command: speed_down
       for:
         hours: 0
@@ -151,7 +158,7 @@
   condition:
     - condition: template
       value_template: >-
-        {{ trigger.entity_id != 'sensor.kitchen_stove_power' or
+        {{ fan_command == 'power_off' or
         trigger.from_state.state not in ['unknown', 'unavailable'] }}
   action:
     - service: script.kitchen_fan_control
