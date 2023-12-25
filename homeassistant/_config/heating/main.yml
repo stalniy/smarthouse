@@ -123,6 +123,8 @@ template:
   - sensor:
     - name: main_heater_current_power
       icon: mdi:flash
+      device_class: power
+      state_class: measurement
       state: |
         {% set max_power = 14 %}
         {% if states("binary_sensor.ebusd_bai_flame") == 'on' %}
@@ -131,6 +133,7 @@ template:
           0
         {% endif %}
       unit_of_measurement: kW
+
     - name: main_heater_errors
       icon: mdi:alert-octagram
       state: |
@@ -148,6 +151,7 @@ template:
         %}
         {{ 'none' if result == '' else result }}
     - name: current_temp_shift_desired
+      state_class: measurement
       state: |
         {% if is_state('binary_sensor.is_day_heating_time', 'on') %}
           0
@@ -156,6 +160,7 @@ template:
         {% endif %}
       unit_of_measurement: °C
     - name: house_max_temp_desired
+      state_class: measurement
       state: | 
         {% set temp_desired = [
             states('input_number.master_bedroom_temp_desired'),
@@ -171,6 +176,7 @@ template:
         %}
         {{ temp_desired - states('sensor.current_temp_shift_desired') | float }}
     - name: heating_flow_temperature
+      state_class: measurement
       state: |
         {% if states('sensor.ebusd_bai_positionvalveset') == 'Heating' %}
           {{ states('sensor.ebusd_bai_flowtemp_temp') }}
@@ -307,3 +313,21 @@ template:
           is_state('binary_sensor.requires_heating_in_entrance_or_tech_room', 'on') and 
           is_state('switch.ebusd_bai_heatingswitch_onoff', 'on') 
         }}
+  - trigger:
+    - platform: time_pattern
+      minutes: "/1"
+    sensor:
+    - name: main_heater_current_power_live
+      icon: mdi:flash
+      unit_of_measurement: "kW"
+      device_class: power
+      state_class: measurement
+      state: >-
+        {{ float(states('sensor.main_heater_current_power'), 0) }}
+      attributes: 
+        triggered_at: "{{ now() }}"
+sensor:
+  - platform: integration
+    source: sensor.main_heater_current_power_live
+    name: main_heater_energy
+    round: 1
