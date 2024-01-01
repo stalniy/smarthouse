@@ -1,0 +1,77 @@
+script: !include ./scripts.yml
+
+input_datetime:
+  kitchen_fan_turn_off_at:
+    name: Вимкнути витяжку в кухні після включення
+    icon: mdi:fan-off
+    has_date: true
+    has_time: true
+
+template:
+  - binary_sensor:
+    - name: requires_kitchen_stove_ventillation
+      state: |
+        {{ 
+          float(states('sensor.kitchen_stove_power'), 0) > 0 or 
+          float(states('sensor.kitchen_socket_left1_power'), 0) > 0
+        }}
+
+automation: 
+- id: toggle_kitchen_ventillation
+  alias: Керування витяжкою в кухні
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.requires_kitchen_stove_ventillation
+      to: 'on'
+      variables:
+        turn_off_at: 1
+        fan_command: speed_fast
+      for: "00:00:10"
+    - platform: state
+      entity_id: binary_sensor.requires_kitchen_stove_ventillation
+      to: 'off'
+      variables:
+        turn_off_at: "{{ now().timestamp() + 5 * 60 }}"
+        fan_command: speed_down
+      for: "00:01:00"
+    - platform: time
+      at: input_datetime.kitchen_fan_turn_off_at
+      variables:
+        turn_off_at: 1
+        fan_command: power_off
+  mode: restart
+  condition:
+    - condition: template
+      value_template: >-
+        {{ 
+          fan_command == 'power_off' or
+          trigger.from_state.state not in ['unknown', 'unavailable'] 
+        }}
+  action:
+    - service: script.kitchen_fan_control
+      data:
+        command: "{{ fan_command }}"
+    - service: input_datetime.set_datetime
+      data:
+        timestamp: "{{ turn_off_at }}"
+      target:
+        entity_id: input_datetime.kitchen_fan_turn_off_at
+      alias: Manage turn_off_at
+
+# - id: enable_kitchen_fan_light
+#   trigger:
+#     - platform: state
+#       entity_id: binary_sensor.kitchen_cooking_stove
+#       to: "on"
+#     - platform: state
+#       entity_id: binary_sensor.kitchen_cooking_stove
+#       to: "off"
+#       for: 00:01:00
+  # condition:
+  #   - condition: template
+  #     value_template: |
+  #       {{ now().timestamp() >= (states('sensor.dark_time_starts_at') | float) }}
+  # action:
+  #   - service: script.kitchen_fan_control
+  #     data:
+  #       command: toggle_light

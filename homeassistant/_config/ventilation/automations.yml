@@ -2,13 +2,23 @@
   alias: Керування вентиляцією у ванних кімнатах
   trigger:
     - id: schedule
-      entity_id:
-        - light.kid_bathroom
-        - light.master_bathroom
       platform: state
+      entity_id: binary_sensor.requires_bathroom_ventillation
       variables:
-        fan_turn_on_at: "{{ now().timestamp() + 5 * 60 }}"
-        fan_turn_off_at: "{{ now().timestamp() + 30 * 60 }}"
+        schedule_fan_state: "{{ 'on' if trigger.to_state.state == 'on' else 'off' }}"
+        fan_turn_on_at: |
+          {% if schedule_fan_state == 'on' and is_state('switch.bathroom_fan', 'off') %}
+            {{ now().timestamp() + 5 * 60 }}
+          {% else %}
+            1
+          {% endif %}
+        fan_turn_off_at: |
+          {% if schedule_fan_state == 'off' and is_state('switch.bathroom_fan', 'on') %}
+            {% set delay_in_mins = 120 if is_state('binary_sensor.bathroom_humidity_high', 'on') > 0 else 10 %}
+            {{ now().timestamp() + delay_in_mins * 60 }}
+          {% else %}
+            1
+          {% endif %}
     - platform: time
       at: input_datetime.bathroom_fan_turn_on_at
       variables:
@@ -17,159 +27,40 @@
       at: input_datetime.bathroom_fan_turn_off_at
       variables:
         fan_command: turn_off
-    - id: check_humidity
-      platform: time_pattern
-      hours: "/6"
-      variables:
-        fan_turn_off_at: "{{ now().timestamp() + 2 * 60 * 60 }}"
+    - platform: state
+      entity_id: binary_sensor.bathroom_humidity_high
+      to: 'off'
+      variables:  
+        fan_command: turn_off
   mode: restart
   action:
-    - choose:
-        - conditions:
-            - condition: template
-              value_template: "{{ trigger.id == 'schedule' and trigger.to_state.state == 'on' }}"
-              alias: Schedule on
-          sequence:
-            - service: input_datetime.set_datetime
-              data:
-                entity_id: input_datetime.bathroom_fan_turn_off_at
-                timestamp: 1
-              alias: Reset turn off at
-            - condition: template
-              value_template: >-
-                {{ (states('input_datetime.bathroom_fan_turn_on_at') |
-                as_datetime).year == 1970 }}
-              alias: Turn on is not set
-            - condition: state
-              entity_id: switch.bathroom_fan
-              state: "off"
-            - service: input_datetime.set_datetime
-              data:
-                entity_id: input_datetime.bathroom_fan_turn_on_at
-                timestamp: "{{ fan_turn_on_at }}"
-              alias: Set turn on
-        - conditions:
-            - condition: template
-              value_template: >-
-                {{ trigger.id == "schedule" and trigger.to_state.state == "off"
-                }}
-              alias: Schedule off
-          sequence:
-            - condition: template
-              value_template: >-
-                {{ states('light.kid_bathroom') == "off" and
-                states('light.master_bathroom') == "off" }}
-              alias: All Bathroom light is off
-            - service: input_datetime.set_datetime
-              data:
-                entity_id: input_datetime.bathroom_fan_turn_on_at
-                timestamp: 1
-              alias: Reset turn on at
-            - condition: state
-              entity_id: switch.bathroom_fan
-              state: "on"
-            - service: input_datetime.set_datetime
-              data:
-                entity_id: input_datetime.bathroom_fan_turn_off_at
-                timestamp: "{{ fan_turn_off_at }}"
-              alias: Set turn off
-        - conditions:
-          - condition: template
-            value_template: >- 
-              {{ trigger.id == "check_humidity" }}
-          sequence:
-            - condition: template
-              value_template: >-
-                {% set humidity_states = [
-                  states('sensor.master_bathroom_climate_humidity'),
-                  states('sensor.kid_bathroom_climate_humidity'),
-                  states('sensor.master_bedroom_climate_humidity')
-                ]%}
-                {% set amount_of_sensors_with_humidity = humidity_states 
-                  | map('float') 
-                  | select('gt', 70) 
-                  | list 
-                  | count 
-                %}
-                {{ amount_of_sensors_with_humidity > 0 and 6 <= now().hour <= 21 }} 
-            - service: switch.turn_on
-              entity_id: switch.bathroom_fan
-              alias: Ввікнути вентиляцію
-            - service: input_datetime.set_datetime
-              data:
-                entity_id: input_datetime.bathroom_fan_turn_off_at
-                timestamp: "{{ fan_turn_off_at }}"
-              alias: schedule turn off
-
-      default:
-        - condition: template
-          value_template: | 
-            {% set wanted_state = 'off' if fan_command == 'turn_on' else 'on' %}
-            {{ states('switch.bathroom_fan') == wanted_state }}
-        - service_template: "switch.{{ fan_command }}"
-          entity_id: switch.bathroom_fan
-          alias: Ввікнути/Вимкнути вентиляцію
-        - condition: state
-          entity_id: switch.bathroom_fan
-          state: "off"
-        - service: input_datetime.set_datetime
+    - if: 
+      - condition: template
+        value_template: "{{ trigger.id == 'schedule' }}"
+      then:
+        - alias: Запланувати час ввімкнення вентилятора
+          service: input_datetime.set_datetime
           data:
-            entity_id:
-              - input_datetime.bathroom_fan_turn_off_at
+            entity_id: "input_datetime.bathroom_fan_turn_on_at"
+            timestamp: "{{ fan_turn_on_at | float }}"
+        - alias: Запланувати час вимкнення вентилятора
+          service: input_datetime.set_datetime
+          data:
+            entity_id: "input_datetime.bathroom_fan_turn_off_at"
+            timestamp: "{{ fan_turn_off_at | float }}"
+      else:
+        - alias: Ввікнути/Вимкнути вентиляцію
+          service_template: "switch.{{ fan_command }}"
+          entity_id: switch.bathroom_fan
+        - condition: template
+          value_template: "{{ fan_command == 'turn_off' }}"
+        - alias: Видаляємо запланований контроль вентилятора
+          service: input_datetime.set_datetime
+          data:
+            entity_id: 
               - input_datetime.bathroom_fan_turn_on_at
+              - input_datetime.bathroom_fan_turn_off_at
             timestamp: 1
-          alias: Reset dates
-
-- id: toggle_kitchen_ventillation
-  alias: Керування витяжкою в кухні
-  trigger:
-    - platform: numeric_state
-      entity_id: 
-        - sensor.kitchen_stove_power
-        - sensor.kitchen_socket_left1_power
-      value_template: "{{ state.attributes.current | float }}"
-      above: 0.0001
-      variables:
-        turn_off_at: 1
-        fan_command: speed_fast
-      for:
-        hours: 0
-        minutes: 0
-        seconds: 10
-    - platform: numeric_state
-      entity_id: 
-        - sensor.kitchen_stove_power
-        - sensor.kitchen_socket_left1_power
-      value_template: "{{ state.attributes.current | float }}"
-      below: 0.0001
-      variables:
-        turn_off_at: "{{ now().timestamp() + 5 * 60 }}"
-        fan_command: speed_down
-      for:
-        hours: 0
-        minutes: 1
-        seconds: 0
-    - platform: time
-      at: input_datetime.kitchen_fan_turn_off_at
-      variables:
-        turn_off_at: 1
-        fan_command: power_off
-  mode: restart
-  condition:
-    - condition: template
-      value_template: >-
-        {{ fan_command == 'power_off' or
-        trigger.from_state.state not in ['unknown', 'unavailable'] }}
-  action:
-    - service: script.kitchen_fan_control
-      data:
-        command: "{{ fan_command }}"
-    - service: input_datetime.set_datetime
-      data:
-        timestamp: "{{ turn_off_at }}"
-      target:
-        entity_id: input_datetime.kitchen_fan_turn_off_at
-      alias: Manage turn_off_at
 
 - alias: Керування вентиляцією в гардеробних
   trigger:
@@ -180,20 +71,36 @@
       entity_id: fan.wardrobes
       alias: Ввікнути/Вимкнути вентиляцію
 
-# - id: enable_kitchen_fan_light
-#   trigger:
-#     - platform: state
-#       entity_id: binary_sensor.kitchen_cooking_stove
-#       to: "on"
-#     - platform: state
-#       entity_id: binary_sensor.kitchen_cooking_stove
-#       to: "off"
-#       for: 00:01:00
-  # condition:
-  #   - condition: template
-  #     value_template: |
-  #       {{ now().timestamp() >= (states('sensor.dark_time_starts_at') | float) }}
-  # action:
-  #   - service: script.kitchen_fan_control
-  #     data:
-  #       command: toggle_light
+- alias: Повідомлення про високу вологість в будинку
+  trigger:
+    - platform: template
+      value_template: | 
+        {%
+          set amount_of_high_humidity_sensors = [
+            states('sensor.kid_bathroom_climate_humidity'),
+            states('sensor.master_bathroom_climate_humidity'),
+            states('sensor.master_wardrobe_climate_humidity'),
+            states('sensor.master_bedroom_climate_humidity'),
+            states('sensor.living_room_climate_humidity'),
+            states('sensor.kitchen_climate_humidity'),
+            states('sensor.entrance_room_climate_humidity'),
+            states('sensor.cabinet_climate_humidity')
+          ] | map('float', 0) | select('gt', 70) | list | count 
+        %}
+        {{ amount_of_high_humidity_sensors > 0 }}
+  action:
+    - service: persistent_notification.create
+      data:
+        message: |
+          Провітріть будинок, зависока вологість:
+          {% set sensors = [
+            { "value": float(states('sensor.kid_bathroom_climate_humidity'), 0), "name": "Дитяча ванна" },
+            { "value": float(states('sensor.master_bathroom_climate_humidity'), 0), "name": "Доросла ванна" },
+            { "value": float(states('sensor.master_wardrobe_climate_humidity'), 0), "name": "Гардеробна" },
+            { "value": float(states('sensor.master_bedroom_climate_humidity'), 0), "name": "Доросла спальня" },
+            { "value": float(states('sensor.living_room_climate_humidity'), 0), "name": "Вітальня" },
+            { "value": float(states('sensor.kitchen_climate_humidity'), 0), "name": "Кухня" },
+            { "value": float(states('sensor.entrance_room_climate_humidity'), 0), "name": "Прихожа" },
+            { "value": float(states('sensor.cabinet_climate_humidity'), 0), "name": "Кабінет" }
+          ]%}
+          {{ sensors | selectattr('value', 'gt', 70) | map(attribute="name") | join(',\n') }}

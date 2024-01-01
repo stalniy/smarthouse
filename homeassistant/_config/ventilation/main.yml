@@ -1,12 +1,6 @@
 automation: !include ./automations.yml
-script: !include ./scripts.yml
 
 input_datetime:
-  kitchen_fan_turn_off_at:
-    name: Вимкнути витяжку в кухні після включення
-    icon: mdi:fan-off
-    has_date: true
-    has_time: true
   bathroom_fan_turn_on_at:
     name: Ввімкнути вентиляцію у ваннах
     icon: mdi:fan-clock
@@ -17,3 +11,18 @@ input_datetime:
     icon: mdi:fan-off
     has_date: true
     has_time: true
+
+template:
+  - binary_sensor:
+    - name: requires_bathroom_ventillation
+      state: |
+        {{ 
+          is_state('light.kid_bathroom', 'on') or 
+          is_state('light.master_bathroom', 'on')
+        }}
+    - name: bathroom_humidity_high
+      state: |
+        {{
+          float(states('sensor.kid_bathroom_climate_humidity'), 0) >= 70 or
+          float(states('sensor.master_bathroom_climate_humidity'), 0) >= 70
+        }}
