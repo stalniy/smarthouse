@@ -71,14 +71,11 @@
       entity_id: sensor.ebusd_bai_waterpressure_press
       below: 1.2
   action:
-    - service: notify.telegram_serhii
-      data:
-        message: |
-          Критичний тиск теплоносія: <b>{{ states('sensor.ebusd_bai_waterpressure_press') }}</b>
     - service: persistent_notification.create
       data:
-        title: ⚠ - Warning!
-        message: "Критичний тиск теплоносія: <b>{{ states('sensor.ebusd_bai_waterpressure_press') }}</b>"
+        title: "⚠ - Warning!"
+        message: |
+          Критичний тиск теплоносія: <b>{{ states('sensor.ebusd_bai_waterpressure_press') }}</b>
   mode: single
 
 - id: save_last_heating_temperature

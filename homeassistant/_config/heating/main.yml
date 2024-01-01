@@ -146,7 +146,7 @@ template:
       state: |
         {% set max_power = 14 %}
         {% if states("binary_sensor.ebusd_bai_flame") == 'on' %}
-          {{ states('sensor.ebusd_bai_modulationtempdesired') | float * max_power / 100 | round(2) }}
+          {{ states('sensor.ebusd_bai_modulationtempdesired') | float(0) * max_power / 100 | round(2) }}
         {% else %}
           0
         {% endif %}
@@ -190,9 +190,9 @@ template:
             states('input_number.kitchen_temp_desired'),
             states('input_number.living_room_temp_desired'),
             states('input_number.entrance_and_tech_room_temp_desired'),
-          ] | max | float
+          ] | max | float(0)
         %}
-        {{ temp_desired - states('sensor.current_temp_shift_desired') | float }}
+        {{ temp_desired - states('sensor.current_temp_shift_desired') | float(0) }}
     - name: heating_flow_temperature
       state_class: measurement
       state: |

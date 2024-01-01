@@ -60,3 +60,14 @@
         - switch.master_bathroom
         - switch.kitchen_light_main
         - switch.kitchen_bar
+
+- id: duplicate_persistent_notification_to_telegram
+  trigger:
+    - platform: persistent_notification
+      update_type:
+        - added
+  action:
+    - service: notify.telegram_serhii
+      data:
+        title: "{{ trigger.notification.title }}"
+        message: "{{ trigger.notification.message }}"
