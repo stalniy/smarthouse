@@ -1,31 +1,3 @@
-- id: '1685193984125'
-  alias: Leave home
-  description: ''
-  trigger:
-  - platform: state
-    entity_id:
-    - group.residents
-    from: home
-    to: not_home
-    for:
-      hours: 0
-      minutes: 1
-      seconds: 0
-  condition: []
-  action:
-  - type: turn_off
-    device_id: e4edd8a8e5c41dfcd5e5fb995faae3ef
-    entity_id: switch.hot_water_pump
-    domain: switch
-  - type: turn_off
-    device_id: 39eeedbff766a6e6a7a5f477323810d5
-    entity_id: light.kid_bathroom
-    domain: light
-  - type: turn_off
-    device_id: 7963b61108aaeabc04743970d4f37081
-    entity_id: light.master_bathroom
-    domain: light
-  mode: single
 - id: '1686056821'
   alias: Керування насосу ГВП
   trigger:
@@ -133,22 +105,4 @@
     data:
       dev_id: serhii_phone_shortcut
       location_name: '{{ device_tracker_state }}'
-  mode: single
-- id: '1688027239221'
-  alias: Хтось в будинку коли мене нема
-  description: ''
-  trigger:
-  - type: motion
-    platform: device
-    device_id: bd5da9a66aed1fda461a02ace69dc036
-    entity_id: binary_sensor.kitchen_motion
-    domain: binary_sensor
-  condition:
-  - condition: state
-    entity_id: group.residents
-    state: not_home
-  action:
-  - service: notify.telegram_serhii
-    data:
-      message: Якийсь рух в будинку!!!
   mode: single

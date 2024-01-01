@@ -11,8 +11,6 @@ devices:
     friendly_name: master_bathroom
   '0xdc8e95fffe1e3877':
     friendly_name: kid_bathroom
-  '0x385b44fffe1b2520':
-    friendly_name: kid_bathroom_towel_dryer
   '0xdc8e95fffe19bbe0':
     friendly_name: master_bathroom_towel_dryer
   '0xdc8e95fffe1e2e26':
@@ -45,21 +43,19 @@ devices:
   '0xa4c138ac2e0ed3ed':
     friendly_name: dishwasher
   '0xa4c138aa7b9ce7bf':
-    friendly_name: '0xa4c138aa7b9ce7bf'
+    friendly_name: livingroom_tracking_light_13
   '0xa4c138d695d32ff4':
-    friendly_name: '0xa4c138d695d32ff4'
+    friendly_name: livingroom_tracking_light_11
   '0xa4c13824ecc4ed30':
-    friendly_name: '0xa4c13824ecc4ed30'
+    friendly_name: livingroom_tracking_light_14
   '0xa4c1381acb247964':
-    friendly_name: '0xa4c1381acb247964'
+    friendly_name: livingroom_tracking_light_12
   '0xa4c138285b382c11':
-    friendly_name: '0xa4c138285b382c11'
-  '0xa4c1385c65126c30':
-    friendly_name: '0xa4c1385c65126c30'
+    friendly_name: livingroom_tracking_light_24
   '0xa4c138ef40675ea6':
-    friendly_name: '0xa4c138ef40675ea6'
+    friendly_name: livingroom_tracking_light_22
   '0xa4c138b9501adc7a':
-    friendly_name: '0xa4c138b9501adc7a'
+    friendly_name: livingroom_tracking_light_21
   '0xa4c13867e6ec9234':
     friendly_name: heater_valves
   '0xa4c138ce682ec97e':
@@ -73,15 +69,7 @@ devices:
     invert_cover: false
   '0x00124b0022ed0b7f':
     friendly_name: cabinet_map_light
-    color_sync: false
     transition: 1
-    homeassistant: {}
-    optimistic: true
-    qos: 0
-    state_action: false
-    filtered_cache:
-      - linkquality
-    retain: false
   '0xa4c13894f4dbe43b':
     friendly_name: livingroom_outside_curtain_2
   '0xa4c1387abb3d7da0':
@@ -118,15 +106,23 @@ devices:
     friendly_name: kid_big_climate
   '0xe0798dfffecc85aa':
     friendly_name: cabinet_climate
-  '0xe0798dfffecc8576':
-    friendly_name: '0xe0798dfffecc8576'
   '0xa4c13874ed7dc3c1':
     friendly_name: kitchen_socket_left1
   '0xa4c1389fc38ce599':
     friendly_name: kitchen_table_light
+  '0xa4c1385c65126c30':
+    friendly_name: livingroom_tracking_light_23
+  '0x385b44fffe1b2520':
+    friendly_name: kid_bathroom_towel_dryer
+  '0xe0798dfffecc8576':
+    friendly_name: entrance_room_climate
+  '0xf4b3b1fffe9910ff':
+    friendly_name: kitchen_climate
+  '0xa4c138e02b828b6b':
+    friendly_name: dohouse_hotfloor
 advanced:
   pan_id: 6754
-  log_level: debug
+  log_level: warn
 external_converters:
   - converters/TS0601.js
 serial:

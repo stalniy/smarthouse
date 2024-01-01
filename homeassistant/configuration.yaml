@@ -57,6 +57,8 @@ homeassistant:
     electricity: !include _config/electricity/main.yml
     cleaning: !include _config/cleaning/main.yml
     ventilation: !include _config/ventilation/main.yml
+    livingroom_light_control: !include _config/livingroom_light_control/main.yml
+    security: !include _config/security/main.yml
 
 python_script:
 

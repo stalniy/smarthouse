@@ -36,26 +36,27 @@
         dev_id: serhii_phone_shortcut
         location_name: "{{ states('input_text.serhii_phone_shortcut') }}"
 
-- id: toggle_kitchen_light
-  alias:  Керуванням світла в кухні
-  trigger: 
+- id: sync_terace_door_open
+  trigger:
     - platform: state
-      entity_id: binary_sensor.livingroom_kitchenoccupancy
-      to: "on"
-    - platform: state
-      entity_id: binary_sensor.livingroom_kitchenoccupancy
-      to: "off"
-      for: 00:00:05
-  condition:
-    - condition: template
-      value_template: | 
-        {{ 
-            trigger.to_state.state == 'on' and (
-              states('sun.sun') == 'below_horizon' or 
-              states('sensor.livingroom_light_level') | float <= 40
-            ) or trigger.to_state.state == 'off'
-        }}
+      entity_id: sensor.terrace_door_sensor
   action:
-    - service_template: "light.turn_{{states('binary_sensor.livingroom_kitchenoccupancy')}}"
+    - service_template: "input_boolean.turn_{{ 'off' if trigger.to_state.state == 'False' else 'on' }}"
       target:
-        entity_id: light.kitchen_light
+        entity_id: input_boolean.terace_door_open
+
+- id: disable_light_on_leave
+  trigger:
+    - platform: state
+      entity_id: group.residents
+      from: home
+      to: not_home
+      for: 00:05:00
+  action:
+    - service: switch.turn_off
+      entity_id:
+        - switch.garage_light_outside_2
+        - switch.kid_bathroom
+        - switch.master_bathroom
+        - switch.kitchen_light_main
+        - switch.kitchen_bar
