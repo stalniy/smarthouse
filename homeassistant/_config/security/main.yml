@@ -1,0 +1,14 @@
+automation:
+  - id: notify_about_moves_when_nobody_at_home
+    trigger:
+      - platform: state
+        entity_id: 
+          - binary_sensor.kitchen_motion
+          - binary_sensor.livingroom_occupancy
+    condition:
+      - condition: template
+        value_template: "{{ states('group.residents') == 'not_home' }}"
+    action:
+      - service: notify.telegram_serhii
+        data:
+          message: Хтось в будинку - "{{ trigger.to_state.state }}" !!!

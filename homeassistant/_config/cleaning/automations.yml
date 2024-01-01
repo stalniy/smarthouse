@@ -16,10 +16,12 @@
       data:
         rooms: 
           - "{{ bathroom_id }}"
+        repeats: 2
   mode: queued
 
 - id: clean_zone
   alias: "Прибрати зону"
+  mode: queued
   trigger:
     - platform: state
       entity_id: sensor.fireplace_button_action
@@ -31,7 +33,6 @@
       data:
         zones:
           - "{{ zone_name }}"
-  mode: queued
 
 - id: clean_house
   alias: Прибирання будинку
@@ -71,15 +72,20 @@
               alias: Force clean
           alias: Нас нема вдома або підтверджене прибирання
       then:
-        - service: script.vacuum_clean
-          alias: Почати прибирання
-          data:
-            rooms: "{{ states('sensor.rooms_to_clean_today') | from_json }}"
         - service: input_datetime.set_datetime
           data:
             date: "{{ now().strftime('%Y-%m-%d') }}"
           target:
             entity_id: input_datetime.last_cleaned_at
+        - service: script.vacuum_clean
+          alias: Почати прибирання
+          data:
+            rooms: "{{ states('sensor.rooms_to_clean_today') | from_json }}"
+        - service: script.vacuum_clean
+          alias: Прибрати вхідну кімнату
+          data: 
+            rooms: [main_entrance_room]
+            repeats: 3
       else:
         - service: notify.telegram_serhii
           data:

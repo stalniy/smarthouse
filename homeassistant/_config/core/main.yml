@@ -15,6 +15,10 @@ input_text:
   serhii_phone_shortcut:
     name: Сергій вдома?
 
+input_boolean:
+  terace_door_open:
+    name: Двері на терасі
+
 sensor:
   - platform: template
     sensors:
@@ -25,6 +29,12 @@ sensor:
     device_id: "sd:0xfd44"
     name: Car
     state_topic: 'espresense/devices/sd:0xfd44'
+    timeout: 10
+    away_timeout: 10
+  - platform: mqtt_room
+    device_id: "iphone_serhii"
+    name: serhii_iphone_room
+    state_topic: 'espresense/devices/iphone_serhii'
     timeout: 10
     away_timeout: 10
         

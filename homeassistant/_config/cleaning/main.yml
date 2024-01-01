@@ -14,17 +14,15 @@ template:
       state: >-
         {% set rooms_to_clean = [
           "hall",
-          "coming_room",
           "living_room_table",
           "kitchen"
         ] %} 
         {% set week_day = now().isoweekday() %}
         
-        {% if week_day % 2 == 0 or week_day == 6 %} 
+        {% if week_day % 2 == 0 or week_day in [6, 7] %} 
           {% set rooms_to_clean = rooms_to_clean + [
             "bedroom_kid_small",
-            "bedroom_kid_big",
-            "child_bathroom"
+            "bedroom_kid_big"
           ]%}
 
           {% if states('input_boolean.skip_child_zone') == 'off' %}
@@ -32,9 +30,8 @@ template:
           {% endif %}
         {% endif %}
 
-        {% if week_day % 2 != 0 or week_day == 6 %}
+        {% if week_day % 2 != 0 or week_day in [6, 7] %}
           {% set rooms_to_clean = rooms_to_clean + [
-            "master_bathroom",
             "master_bedroom",
             "wardrobe",
             "cabinet"
@@ -46,7 +43,7 @@ template:
 script:
   vacuum_clean:
     alias: Vacuum clean rooms
-    mode: restart
+    mode: queued
     icon: mdi:robot-vacuum
     description: |
       Cleans specified rooms by their names
@@ -63,7 +60,7 @@ script:
             - bedroom_kid_big
             - cabinet
             - kitchen
-            - coming_room
+            - main_entrance_room
             - living_room_table
             - child_bathroom
             - master_bedroom
@@ -71,6 +68,13 @@ script:
             - living_room_entertainment
             - master_bathroom
             - hall
+      repeats:
+        name: Repeat cleaning
+        default: 1
+        selector:
+          number:
+            min: 1
+            max: 10
     variables:
       roomsIds: |
         {% 
@@ -79,7 +83,7 @@ script:
             { "label": "bedroom_kid_big", "id": 17 },
             { "label": "cabinet", "id": 18 },
             { "label": "kitchen", "id": 19 },
-            { "label": "coming_room", "id": 20 },
+            { "label": "main_entrance_room", "id": 20 },
             { "label": "living_room_table", "id": 21 },
             { "label": "child_bathroom", "id": 27 },
             { "label": "master_bedroom", "id": 23 },
@@ -98,18 +102,53 @@ script:
             | list 
           }}
         {% endif %}
+      start_on_vacuum_state:
+        - 'docked'
+        - 'idle'
+        - 'returning'
     sequence:
-    - service: notify.telegram_serhii
-      data:
-        message: |
-          Брюс почав прибирання:
-          {{ rooms | join("\n") | replace('_', '\_') }}
-    - service: vacuum.send_command
-      data:
-        command: app_segment_clean
-        params: "{{ roomsIds }}"
-      target:
-        entity_id: vacuum.bruce
+      - alias: Очікуємо поки робот завершить прибирання
+        wait_template: |
+          {{ states('vacuum.bruce') in start_on_vacuum_state }}
+        timeout: "01:30:00"
+      - if: 
+          - condition: template
+            value_template: "{{ wait.completed }}"
+        then:
+          - service: notify.telegram_serhii
+            data:
+              message: |
+                Брюс запланував прибирання:
+                {{ rooms | join("\n") | replace('_', '\_') }}
+          - service: vacuum.send_command
+            data:
+              command: app_segment_clean
+              params: 
+                - segments: "{{ roomsIds }}"
+                  repeat: "{{ repeats | int }}"
+            target:
+              entity_id: vacuum.bruce
+          - if: 
+              - condition: template
+                value_template: |
+                  {{ 
+                    is_state('input_boolean.skip_child_zone', 'on') and 
+                    'living_room_entertainment' in rooms 
+                  }}
+            then:
+              - service: script.vacuum_clean_zone
+                data:
+                  zones:
+                    - livingroom_entertainment
+        else:
+          - service: notify.telegram_serhii
+            data:
+              message: |
+                Заплановане прибирання проігнороване, бо стан Брюса не змінився на {{ start_on_vacuum_state }}:
+                {{ rooms | join("\n") | replace('_', '\_') }}
+                
+                Почати прибирання: /clean\_house
+
 
   vacuum_clean_zone:
     alias: Vacuum clean zones
@@ -140,10 +179,15 @@ script:
           | map(attribute="value")
           | list  
         }}
+      start_on_vacuum_state:
+        - 'docked'
+        - 'idle'
+        - 'returning'
     sequence: 
-      - condition: state
-        entity_id: vacuum.bruce
-        state: docked
+      - alias: Очікуємо поки робот завершить прибирання
+        wait_template: |
+          {{ states('vacuum.bruce') in start_on_vacuum_state }}
+        timeout: "00:15:00"
       - service: xiaomi_miio.vacuum_clean_zone
         data:
           repeats: 2
