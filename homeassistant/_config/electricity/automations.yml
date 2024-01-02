@@ -54,12 +54,11 @@
     - service: notify.telegram_serhii
       data:
         message: | 
-          {% if states('binary_sensor.has_connection_to_main') == 'on' %}
-            З'явязок з мережою наявний.
+          {% if is_state('binary_sensor.has_connection_to_main', 'on') %}
+            З'явилась мережа.
           {% else %}
             Зникла мережа.
           {% endif %}
-
           Напруга:
           1. {{ states('sensor.power_consumption_voltage_x') }}
           2. {{ states('sensor.power_consumption_voltage_y') }}

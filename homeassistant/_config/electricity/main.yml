@@ -73,10 +73,16 @@ template:
   - binary_sensor:
       - name: has_connection_to_main
         state: | 
-          {{ 
-            states('sensor.power_consumption_voltage_x') != 'unknown' and
-            states('sensor.power_consumption_voltage_y') != 'unknown' and
-            states('sensor.power_consumption_voltage_z') != 'unknown'
-          }}
+          {% set ok_phases = [
+            states('sensor.power_consumption_voltage_x'),
+            states('sensor.power_consumption_voltage_y'),
+            states('sensor.power_consumption_voltage_z')
+          ] | map('float', 0) 
+            | select('<=', 242) 
+            | select('>=', 198) 
+            | list 
+            | count 
+          %}
+          {{ ok_phases > 0 }}
 
 automation: !include ./automations.yml
