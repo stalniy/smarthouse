@@ -1,0 +1,21 @@
+automation:
+  - id: doghouse_heating
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.doghouse_climate_temperature
+        below: 0
+        variables: 
+          heating_state: 'on'
+      - platform: numeric_state
+        entity_id: sensor.doghouse_climate_temperature
+        above: 5
+        variables: 
+          heating_state: 'off'
+    condition:
+      - condition: state
+        entity_id: group.residents
+        state: home
+    action: 
+      - service_template: "switch.{{ heating_state }}" 
+        target:
+          entity_id: switch.dohouse_hotfloor

@@ -60,6 +60,7 @@ homeassistant:
     ventillation_kitchen_stove: !include _config/ventillation_kitchen_stove/main.yml
     livingroom_light_control: !include _config/livingroom_light_control/main.yml
     security: !include _config/security/main.yml
+    doghouse: !include _config/doghouse/main.yml
 
 python_script:
 
