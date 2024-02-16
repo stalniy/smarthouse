@@ -1,3 +1,7 @@
+input_boolean:
+  livingroom_automatic_light:
+    name: Автоматичне керування світлом у вітальні
+
 template:
   - binary_sensor:
       - name: livingroom_low_light_level
@@ -56,6 +60,23 @@ automation:
       for: 00:00:03
       variables:
         light_entity_ids: [light.kitchen_bar]
+  condition:
+    - condition: template
+      value_template: | 
+        {{ 
+            is_state('input_boolean.livingroom_automatic_light', 'on') and
+            (trigger.to_state.state == 'on' and 
+              is_state('binary_sensor.livingroom_low_light_level', 'on') or 
+            trigger.to_state.state == 'off')
+        }}
+  action:
+    - service_template: "light.turn_{{ trigger.to_state.state }}"
+      target:
+        entity_id: "{{ light_entity_ids | list }}"
+
+- id: toggle_kitchen_light
+  mode: parallel
+  trigger:
     - platform: state
       entity_id: binary_sensor.kitchen_bar_occupancy
       to: "off"
@@ -71,7 +92,7 @@ automation:
       to: "off"
       for: 00:00:05
       variables:
-        light_entity_ids: [light.kitchen_light]
+        light_entity_ids: [light.kitchen_light]    
   condition:
     - condition: template
       value_template: | 

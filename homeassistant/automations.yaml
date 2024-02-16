@@ -81,28 +81,3 @@
       message: Є девайси що розрядились нижче 15%
       title: Розряджені девайси!
   mode: single
-- id: '1687463732202'
-  alias: 'Serhii: telegram bot based home presence'
-  description: ''
-  trigger:
-  - platform: event
-    event_type: telegram_command
-    context: {}
-    event_data:
-      command: /back_home
-    variables:
-      device_tracker_state: home
-  - platform: event
-    event_type: telegram_command
-    context: {}
-    event_data:
-      command: /leave_home
-    variables:
-      device_tracker_state: not_home
-  condition: []
-  action:
-  - service: device_tracker.see
-    data:
-      dev_id: serhii_phone_shortcut
-      location_name: '{{ device_tracker_state }}'
-  mode: single

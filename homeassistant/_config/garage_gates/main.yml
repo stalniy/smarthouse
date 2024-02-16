@@ -1,3 +1,9 @@
+input_datetime:
+  power_off_garage_gates_at:
+    name: Дата вимкнення воріт гаража
+    has_date: true
+    has_time: true
+
 switch:
   - platform: template
     switches:

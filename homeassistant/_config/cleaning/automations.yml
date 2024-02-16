@@ -1,11 +1,22 @@
 - id: clean_bathroom
   alias: "Прибрати ванну"
+  mode: queued
   trigger:
     - platform: state
       entity_id: sensor.kid_bathroom_button_action
       to: single
       variables:
         bathroom_id: child_bathroom
+    - platform: template
+      value_template: "{{ is_state('counter.kid_bathroom_switch', '3') }}"
+      variables:
+        bathroom_id: child_bathroom
+        feedback_entity_id: switch.kid_bathroom
+    - platform: template
+      value_template: "{{ is_state('counter.master_bathroom_switch', '3') }}"
+      variables:
+        bathroom_id: master_bathroom
+        feedback_entity_id: switch.master_bathroom
     - platform: state
       entity_id: sensor.master_bathroom_button_action
       to: single
@@ -17,7 +28,11 @@
         rooms: 
           - "{{ bathroom_id }}"
         repeats: 2
-  mode: queued
+    - condition: template
+      value_template: "{{ feedback_entity_id is defined }}"
+    - service: script.light_feedback
+      data:
+        entity_id: "{{ feedback_entity_id }}"
 
 - id: clean_zone
   alias: "Прибрати зону"
@@ -95,3 +110,16 @@
               Щоб прибрати зараз тисни /clean\_house
           alias: Сповіщення про прибирання
   mode: single
+
+- id: set_roborock_fan_speed_to_quiet_on_returning
+  trigger:
+    platform: state
+    entity_id: vacuum.bruce
+    to: returning
+    for: 00:00:03
+  action:
+    - service: vacuum.set_fan_speed
+      target:
+        entity_id: vacuum.bruce
+      data:
+        fan_speed: quiet

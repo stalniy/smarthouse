@@ -4,16 +4,18 @@ if heating_mode == 'auto':
     # TODO: add possibility to auto adjust heating mode in case 
     # 1. heater stops heating too often
     # 2. heater cannot increase temp during a long period of time
-    house_temp_desired = float(hass.states.get('sensor.house_max_temp_desired').state)
-    house_avg_temp = float(hass.states.get('sensor.house_avg_temp').state)
-    temp_diff = house_temp_desired - house_avg_temp
+    temp_diff = float(hass.states.get('sensor.house_min_heating_temp_diff').state)
+    is_day_heating_time = hass.states.get('binary_sensor.is_day_heating_time').state == 'on'
+    is_cheap_heating_time = hass.states.get('binary_sensor.is_cheap_heating_period').state == 'on'
 
-    if temp_diff >= 3:
+    if temp_diff <= -3 or is_day_heating_time and is_cheap_heating_time:
         heating_mode = 'swift'
-    elif temp_diff >= 2:
+    elif temp_diff <= -2:
         heating_mode = 'fast'
-    else:
+    elif temp_diff <= -1:
         heating_mode = 'normal'
+    else:
+        heating_mode = 'minimum'
 
 if heating_mode == 'minimum':
     flow_temp_desired = 35

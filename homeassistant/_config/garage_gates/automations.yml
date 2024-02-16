@@ -20,8 +20,6 @@
     - platform: state
       entity_id: group.residents
       to: not_home
-    - platform: time
-      at: sensor.some_time_at_home_passed
     - platform: event
       event_type: telegram_command
       event_data:
@@ -33,26 +31,50 @@
         - switch.garage_gates_right_open
   mode: single
 
+- id: close_gates_when_going_to_house
+  alias: Закрити ворота, коли йдемо в будинок
+  trigger:
+    - platform: event
+      event_type: dahua_event_received
+      event_data:
+        action: Start
+        Code: CrossLineDetection
+        data: 
+          Direction: RightToLeft
+          Object:
+            ObjectType: Human
+          Name: garage_home_direction
+  condition:
+    - condition: template
+      value_template: |
+        {{
+          (is_state('binary_sensor.garage_gates_left_open_contact', 'on') or
+          is_state('binary_sensor.garage_gates_right_open_contact', 'on'))
+        }}
+  action:
+    - service: notify.telegram_serhii
+      data:
+        message: >-
+          Йдеш в будинок? Закрий ворота: /close\_garage\_gates
+
 - id: power_off_garage_gates_when_closed
   alias: "Гараж: Вимкнути живлення на ворота, коли закрились"
   trigger:
     - platform: state
-      entity_id: binary_sensor.garage_gates_left_open_contact
+      entity_id: 
+        - binary_sensor.garage_gates_left_open_contact
+        - binary_sensor.garage_gates_right_open_contact
+      to: 'off'
+      variables:
+        power_off_at: "{{ now() + timedelta(seconds=10) }}"
     - platform: state
-      entity_id: binary_sensor.garage_gates_right_open_contact
-    - platform: state
-      entity_id: binary_sensor.garage_gates_left_open_contact
+      entity_id: 
+        - binary_sensor.garage_gates_left_open_contact
+        - binary_sensor.garage_gates_right_open_contact
       to: "on"
-      for: "00:15:00"
       variables:
         force_power_off: true
-
-    - platform: state
-      entity_id: binary_sensor.garage_gates_right_open_contact
-      to: "on"
-      for: "00:15:00"
-      variables:
-        force_power_off: true
+        power_off_at: "{{ now() + timedelta(minutes=15) }}"
   condition:
     - condition: template
       value_template: | 
@@ -62,17 +84,63 @@
           force_power_off is defined and force_power_off
         }}
   action:
-    - delay: "00:00:10"
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.power_off_garage_gates_at
+      data:
+        datetime: "{{ power_off_at }}"
+  mode: single
+
+- id: power_on_garage_gates_when_exit_house
+  mode: single
+  alias: "Ввімкнути живлення на ворота, коли виходжу з будинку"
+  trigger:
+    platform: event
+    event_type: dahua_event_received
+    event_data:
+      action: Start
+      Code: CrossLineDetection
+      data:
+        Direction: LeftToRight
+        Name: house_near_stairs
+  condition:
+    - condition: template
+      value_template: |
+        {{ 
+          is_state('binary_sensor.garage_gates_left_open_contact', 'off') and
+          is_state('binary_sensor.garage_gates_right_open_contact', 'off') and
+          is_state('switch.garage_gates_power', 'off') and
+          is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on')
+        }}
+  action:
+    - service: switch.turn_on
+      target:
+        entity_id: switch.garage_gates_power
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.power_off_garage_gates_at
+      data:
+        datetime: "{{ now() + timedelta(minutes=5) }}"
+
+- id: power_off_gates_at_specified_time
+  mode: single
+  trigger:
+    platform: time
+    at: input_datetime.power_off_garage_gates_at
+  action:
     - service: switch.turn_off
       target:
         entity_id: switch.garage_gates_power
     - if:
         - condition: template
-          value_template: "{{ force_power_off is defined }}"
+          value_template: |
+            {{ 
+              is_state('binary_sensor.garage_gates_left_open_contact', 'on') or
+              is_state('binary_sensor.garage_gates_right_open_contact', 'on')
+            }}
       then:
         - service: notify.telegram_serhii
           data:
             message: >-
-              Ворота відкриті більше 15хв, вимикаю живлення. 
-              Тисни /close\_garage\_gates, щоб закрити
-  mode: single
+              Вимикаю живлення на воротах. 
+              Тисни /close\_garage\_gates, щоб закрити їх

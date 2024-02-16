@@ -1,0 +1,27 @@
+template:
+  - binary_sensor:
+    - name: outside_front_light_needed
+      state: |
+        {{ 
+          is_state('group.residents', 'home') and
+          is_state('binary_sensor.is_dark', 'on') and (
+            is_state('binary_sensor.camera_garage_gates_smart_motion_human', 'on') or 
+            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on')
+          )
+        }}
+
+automation:
+  - id: toggle_outside_light_on_human
+    alias: Зовнішнє світло
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.outside_front_light_needed
+        to: "on"
+      - platform: state
+        entity_id: binary_sensor.outside_front_light_needed
+        to: "off"
+        for: "00:03:00"
+    action:
+      - service_template: "switch.turn_{{ trigger.to_state.state }}"
+        target:
+          entity_id: switch.main_entrance_outside_light

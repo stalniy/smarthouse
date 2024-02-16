@@ -1,0 +1,63 @@
+automation:
+  - id: notify_about_crossed_regions_house_entrance
+    alias: Notify about IVS
+    mode: parallel
+    max: 20
+    trigger:
+      - platform: event
+        event_type: dahua_event_received
+        event_data:
+          action: Start
+          Code: CrossLineDetection
+        variables:
+          photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+      - platform: event
+        event_type: dahua_event_received
+        event_data:
+          action: Start
+          Code: CrossRegionDetection
+        variables:
+          photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+    action:
+      - service: camera.snapshot
+        target:
+          entity_id: camera.camera_house_entrance_sub
+        data:
+          filename: "{{ photo_path }}"
+      # - service: notify.telegram_serhii
+      #   data:
+      #     title: "Рух у дворі"
+      #     message: |
+      #       Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}
+      - service: notify.telegram_serhii
+        data:
+          message: ""
+          data:
+            photo: 
+              file: "{{ photo_path }}"
+              caption: | 
+                Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}
+
+  - id: guests_via_main_entrance
+    trigger:
+      platform: event
+      event_type: dahua_event_received
+      event_data:
+        action: Start
+        Code: CrossLineDetection
+        data:
+          Direction: LeftToRight
+          Name: yard_gates
+          Object:
+            ObjectType: Human
+      variables:
+        photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg"
+    action:   
+      - service: notify.telegram_serhii
+        data:
+          message: ""
+          data:
+            photo: 
+              file: "{{ photo_path }}"
+              caption: | 
+                Прийшли гості

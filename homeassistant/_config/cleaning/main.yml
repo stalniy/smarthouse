@@ -22,12 +22,9 @@ template:
         {% if week_day % 2 == 0 or week_day in [6, 7] %} 
           {% set rooms_to_clean = rooms_to_clean + [
             "bedroom_kid_small",
-            "bedroom_kid_big"
+            "bedroom_kid_big",
+            "living_room_entertainment"
           ]%}
-
-          {% if states('input_boolean.skip_child_zone') == 'off' %}
-            {% set rooms_to_clean = rooms_to_clean + ["living_room_entertainment"] %}
-          {% endif %}
         {% endif %}
 
         {% if week_day % 2 != 0 or week_day in [6, 7] %}
@@ -55,7 +52,6 @@ script:
           select:
             multiple: true
             options:
-            - ALL
             - bedroom_kid_small
             - bedroom_kid_big
             - cabinet
@@ -76,7 +72,7 @@ script:
             min: 1
             max: 10
     variables:
-      roomsIds: |
+      rooms_ids: |
         {% 
           set all_rooms = [
             { "label": "bedroom_kid_small", "id": 16 },
@@ -93,41 +89,55 @@ script:
             { "label": "hall", "id": 22 }
           ]
         %} 
-        {% if 'ALL' in rooms %}
-          {{ all_rooms | map(attribute="id") | list }}
-        {% else %}
-          {{ all_rooms 
-            | selectattr('label', 'in', rooms)
-            | map(attribute="id")
-            | list 
-          }}
+        {% set rooms_to_clean = rooms %}
+
+        {% if is_state('input_boolean.skip_child_zone', 'on') and 'living_room_entertainment' in rooms %}
+          {% set rooms_to_clean = rooms_to_clean | reject('eq', 'living_room_entertainment') | list %}
         {% endif %}
+        
+        {{ all_rooms 
+          | selectattr('label', 'in', rooms_to_clean)
+          | map(attribute="id")
+          | list 
+        }}
       start_on_vacuum_state:
         - 'docked'
-        - 'idle'
         - 'returning'
     sequence:
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
           {{ states('vacuum.bruce') in start_on_vacuum_state }}
-        timeout: "01:30:00"
+        timeout: "05:00:00"
       - if: 
           - condition: template
             value_template: "{{ wait.completed }}"
         then:
-          - service: notify.telegram_serhii
-            data:
-              message: |
-                Брюс запланував прибирання:
-                {{ rooms | join("\n") | replace('_', '\_') }}
-          - service: vacuum.send_command
-            data:
-              command: app_segment_clean
-              params: 
-                - segments: "{{ roomsIds }}"
-                  repeat: "{{ repeats | int }}"
-            target:
-              entity_id: vacuum.bruce
+          - if: 
+            - condition: template
+              value_template: "{{ rooms_ids | count != 0 }}"
+            then: 
+            - service: vacuum.send_command
+              data:
+                command: app_segment_clean
+                params: 
+                  - segments: "{{ rooms_ids }}"
+                    repeat: "{{ repeats if repeats is defined else 1 }}"
+              target:
+                entity_id: vacuum.bruce
+            - alias: Очікуємо поки робот почне прибирання
+              wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
+              timeout: "00:00:30"
+            - service: notify.telegram_serhii
+              data:
+                message: |
+                  Брюс почав прибирання:
+                  {{ rooms | join("\n") | replace('_', '\_') }}
+            else:
+              - service: notify.telegram_serhii
+                data:
+                  message: |
+                    Не виявлено кімнат для прибирання, ігнорую. Кімнати для прибирання:
+                    {{ rooms | join("\n") | replace('_', '\_') }}
           - if: 
               - condition: template
                 value_template: |
@@ -138,8 +148,7 @@ script:
             then:
               - service: script.vacuum_clean_zone
                 data:
-                  zones:
-                    - livingroom_entertainment
+                  zones: [livingroom_entertainment]
         else:
           - service: notify.telegram_serhii
             data:
@@ -148,7 +157,6 @@ script:
                 {{ rooms | join("\n") | replace('_', '\_') }}
                 
                 Почати прибирання: /clean\_house
-
 
   vacuum_clean_zone:
     alias: Vacuum clean zones
@@ -169,9 +177,9 @@ script:
       zones_coords: |
         {% 
           set coords = [
-            { "label": "livingroom_entertainment", "value": [24100,25160,27340,28220] },
-            { "label": "terrace_exit", "value": [26033,25167,27317,27283] },
-            { "label": "fireplace", "value": [21825,25800,24350,27350] }
+            { "label": "livingroom_entertainment", "value": [24100,25160,27340,28220,1] },
+            { "label": "terrace_exit", "value": [26033,25167,27317,27283,2] },
+            { "label": "fireplace", "value": [21825,25800,24350,27350,2] }
           ]
         %}
         {{ coords 
@@ -181,18 +189,30 @@ script:
         }}
       start_on_vacuum_state:
         - 'docked'
-        - 'idle'
         - 'returning'
     sequence: 
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
           {{ states('vacuum.bruce') in start_on_vacuum_state }}
-        timeout: "00:15:00"
-      - service: xiaomi_miio.vacuum_clean_zone
-        data:
-          repeats: 2
-          zone: "{{ zones_coords }}"
+        timeout: "05:00:00"
+      - service: vacuum.set_fan_speed
         target:
           entity_id: vacuum.bruce
+        data:
+          fan_speed: max
+      - service: vacuum.send_command
+        data:
+          command: app_zoned_clean
+          params: "{{ zones_coords }}"
+        target:
+          entity_id: vacuum.bruce
+      - alias: Очікуємо поки робот почне прибирання
+        wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
+        timeout: "00:00:30"
+      - service: notify.telegram_serhii
+        data:
+          message: |
+            Брюс почав прибирання зон:
+            {{ zones | join("\n") | replace('_', '\_') }}
       
 automation: !include ./automations.yml
