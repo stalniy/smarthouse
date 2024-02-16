@@ -96,7 +96,7 @@
   alias: Керування опаленням по часу
   trigger:
     - platform: time
-      at: '23:30'
+      at: '23:05'
       variables:
         heating_state: 'on'
     - platform: time
@@ -112,89 +112,71 @@
       variables: 
         heating_state: 'off'
   action:
-    - service_template: switch.turn_{{ heating_state }}
+    - if:
+      - condition: "template"
+        value_template: "{{ states('input_select.heating_mode') != 'auto' }}"
+      then:
+        - service: input_select.select_option
+          target:
+            entity_id: input_select.heating_mode
+          data:
+            option: auto
+    - if:
+      - condition: "template"
+        value_template: "{{ states('input_select.heating_preset') != 'both' }}"
+      then:
+        - service: input_select.select_option
+          target:
+            entity_id: input_select.heating_preset
+          data:
+            option: both
+    - service_template: input_boolean.turn_{{ heating_state }}
       entity_id: input_boolean.heating_enabled
     - if:
       - condition: template
-        value_template: "{{ heating_state == 'off' and states('input_boolean.hwc_enabled') == 'on' }}"
+        value_template: "{{ heating_state == 'off' and is_state('input_boolean.hwc_enabled', 'on') }}"
       then:
-      - service: switch.turn_off
+      - service: input_boolean.turn_off
         entity_id: input_boolean.hwc_enabled
 
-- id: enable_hot_floor_pump
-  alias: Ввімкнути насос теплої підлоги (ТП)
+- id: toggle_hot_floor_pump
+  alias: Керування насосом теплої підлоги (ТП)
+  mode: restart
   trigger:
-    - id: solar_on
-      type: power
-      platform: device
-      device_id: 26ffd1f44a4fa883a5346115b3592da0
-      entity_id: sensor.power_production_now
-      domain: sensor
-      above: 1000
-    - id: heater_on
-      platform: state
-      entity_id: input_boolean.heating_enabled
-      to: "on"
-    - platform: numeric_state
-      entity_id: sensor.fireplace_fan_power
-      above: 1
-  action:
-    - alias: Enable pump
-      service_template: switch.turn_on
-      entity_id: switch.hot_floor_pump
-  mode: single
-
-- id: disable_hot_floor_pump
-  alias: Вимкнути насос теплої підлоги (ТП)
-  trigger:
-    - id: solar_off
-      type: power
-      platform: device
-      device_id: 26ffd1f44a4fa883a5346115b3592da0
-      entity_id: sensor.power_production_now
-      domain: sensor
-      below: 999
+    - platform: state
+      entity_id: binary_sensor.hot_floor_pump_required
+      to: 'on'
       variables:
-        scheduled_disabling: false
-    - id: heater_off
-      platform: state
-      entity_id: input_boolean.heating_enabled
-      to: "off"
+        pump_state: 'on'
+    - platform: state
+      entity_id: binary_sensor.hot_floor_pump_required
+      to: 'off'
       variables:
-        scheduled_disabling: true
+        delay_turn_off: "{{ now() + timedelta(hours=1) }}"
+        pump_state: "{{ states('binary_sensor.is_hot_floor_valves_open') }}"
     - platform: time
       at: input_datetime.disable_hot_floor_pump_at
       variables:
-        scheduled_disabling: false
-    - platform: numeric_state
-      entity_id: sensor.fireplace_fan_power
-      below: 1
-      variables:
-        scheduled_disabling: true
-  condition:
-    - condition: template
-      value_template: "{{ states('input_boolean.heating_enabled') == 'off' }}"
+        pump_state: 'off'
   action:
+    - alias: Set pump turn off time
+      service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.disable_hot_floor_pump_at
+      data:
+        datetime: "{{ delay_turn_off if delay_turn_off is defined and pump_state == 'on' else as_datetime(0) }}"
     - if: 
         - condition: template
-          value_template: "{{ scheduled_disabling }}"
+          value_template: "{{ not is_state('switch.hot_floor_pump', pump_state) }}"
       then:
-        - alias: Schedule pump disabling
-          service: input_datetime.set_datetime
-          target:
-            entity_id: input_datetime.disable_hot_floor_pump_at
-          data:
-            timestamp: "{{ now().timestamp() + 2 * 60 * 60 }}"
-      else:
-      - alias: Disable pump
-        service_template: switch.turn_off
-        entity_id: switch.hot_floor_pump
-  mode: single
+        - alias: Toggle pump
+          service_template: "switch.turn_{{ pump_state }}"
+          entity_id: switch.hot_floor_pump
 
 - id: control_heating_valves
   alias: Керування кранами опалення в залежності від температури
-  mode: parallel
-  max: 20
+  mode: queued
+  max: 24
   trigger:
     - platform: state
       entity_id: binary_sensor.heating_valve_open_master_bedroom
@@ -223,9 +205,12 @@
     - platform: state
       entity_id: binary_sensor.heating_valve_open_living_room
       variables:
+        valve_switch_entity_id: [switch.heater_valve_livingroom]
+    - platform: state
+      entity_id: binary_sensor.heating_valve_open_living_room_hot_floor
+      variables:
         valve_switch_entity_id: 
-          - switch.heater_valve_livingroom
-          # - switch.heater_valve_hot_floor_livingroom3
+          - switch.heater_valve_hot_floor_livingroom3
           - switch.heater_valve_hot_floor_livingroom2
           - switch.heater_valve_hot_floor_livingroom1
     - platform: state
@@ -233,7 +218,7 @@
       variables:
         valve_switch_entity_id: [switch.heater_valve_kitchen_hot_floor]
     - platform: state
-      entity_id: binary_sensor.heating_valve_open_entrance_or_tech_room
+      entity_id: binary_sensor.heating_valve_open_entrance_room
       variables:
         valve_switch_entity_id: [switch.heater_valve_hot_floor_entrance_tech_room]
   action:
@@ -242,23 +227,45 @@
       target:
         entity_id: "{{ valve_switch_entity_id | list }}"
 
+# - id: open_valves_on_collector_if_no_heating
+#   alias: Вікдрити крани на колекторі якщо вимкнене опалення
+#   trigger:
+#     platform: state
+#     entity_id: input_boolean.heating_enabled
+#     to: 'off'
+#   action:
+#     - service: switch.turn_off
+#       entity_id: 
+#         - switch.heater_valve_master_bedroom
+#         - switch.heater_valve_master_bathroom_hot_floor
+#         - switch.heater_valve_cabinet
+#         - switch.heater_valve_kid_small_bedroom
+#         - switch.heater_valve_kid_big_bedroom
+#         - switch.heater_valve_hall_and_small_bathroom
+#         - switch.heater_valve_livingroom
+#         - switch.heater_valve_hot_floor_livingroom3
+#         - switch.heater_valve_hot_floor_livingroom2
+#         - switch.heater_valve_hot_floor_livingroom1
+#         - switch.heater_valve_kitchen_hot_floor
+#         - switch.heater_valve_hot_floor_entrance_tech_room
+
 - id: control_hwc
   alias: Керування бойлером
   trigger:
-    - type: energy
-      platform: device
-      device_id: 26ffd1f44a4fa883a5346115b3592da0
-      entity_id: sensor.energy_current_hour
-      domain: sensor
-      above: 1.5
+    - platform: template
+      value_template: |
+        {{ 
+          states('sensor.solcast_pv_forecast_forecast_this_hour') | float(0) >= 1500 and
+          5 <= now().hour <= 19
+        }}
       variables:
         heater_state: "on"
-    - type: energy
-      platform: device
-      device_id: 26ffd1f44a4fa883a5346115b3592da0
-      entity_id: sensor.energy_current_hour
-      domain: sensor
-      below: 1.5
+    - platform: template
+      value_template: |
+        {{ 
+          states('sensor.solcast_pv_forecast_forecast_this_hour') | float(0) < 1500 and
+          5 <= now().hour <= 19
+        }}
       variables:
         heater_state: "off"
     - platform: time
@@ -274,7 +281,7 @@
         - condition: template
           value_template: "{{ now().strftime('%a') == 'Sat' and trigger.platform == 'time' }}"
       then:
-        - service_template: "switch.turn_{{ heater_state }}"
+        - service_template: "input_boolean.turn_{{ heater_state }}"
           target:
             entity_id: input_boolean.hwc_enabled
       else:

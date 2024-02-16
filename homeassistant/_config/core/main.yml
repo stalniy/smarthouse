@@ -19,6 +19,24 @@ input_boolean:
   terace_door_open:
     name: Двері на терасі
 
+input_select:
+  curtain_outside_mode:
+    name: Режим ролет
+    options:
+      - tv_watching_light_mode
+      - tv_watching_mode
+      - close_panoramic
+      - close_everything
+      - open
+
+counter:
+  kid_bathroom_switch:
+    name: К-сть перемикань світла в дитячій ванній
+    step: 1
+  master_bathroom_switch:
+    name: К-сть перемикань світла в дорослій ванній
+    step: 1
+
 sensor:
   - platform: template
     sensors:
@@ -37,7 +55,42 @@ sensor:
     state_topic: 'espresense/devices/iphone_serhii'
     timeout: 10
     away_timeout: 10
+
+template:
+  - binary_sensor:  
+    - name: is_dark
+      state: |
+        {{ 
+          is_state('sun.sun', 'below_horizon') or
+          now().timestamp() + 1.5 * 60 * 60 >= as_datetime(states('sensor.sun_next_setting')).timestamp() or
+          now().hour >= 22 or now().hour < 1
+        }}
+
+command_line:
+  - switch:
+      name: water_heater_2k
+      icon: mdi:water-boiler
+      command_on: !secret water_heater_command_on
+      command_off: !secret water_heater_command_off
+      command_state: !secret water_heater_command_state
+      value_template: >-
+        {{ value == '"on"' }}
+      # availability: "{{ value_json.error == 0 }}"
+
+# switch:
+#   - platform: command_line
+#     resource: !secret water_heater_resource_url
+#     # method: POST
+#     body_on: !secret water_heater_body_on
+#     body_off: !secret water_heater_body_off
+#     value_template: "{{ value_json.error == 0 and value_json.data.switches[0].switch == 'on' }}"
+#     availability: "{{ value_json.error == 0 }}"
+#     scan_interval: 60
+#     timeout: 100
+#     headers:
+#       Content-Type: application/json
+#     device_class: switch
+    # name: water_heater_2k
         
 automation: !include ./automations.yml
-
-script: !include ./scripts.yml
+script: !include ./script.yml

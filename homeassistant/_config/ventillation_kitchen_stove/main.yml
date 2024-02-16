@@ -10,6 +10,7 @@ input_datetime:
 template:
   - binary_sensor:
     - name: requires_kitchen_stove_ventillation
+      delay_off: "00:00:05"
       state: |
         {{ 
           float(states('sensor.kitchen_stove_power'), 0) > 0 or 
@@ -22,22 +23,23 @@ automation:
   trigger:
     - platform: state
       entity_id: binary_sensor.requires_kitchen_stove_ventillation
+      from: 'off'
       to: 'on'
       variables:
-        turn_off_at: 1
+        turn_off_at: "{{ 0 | as_datetime }}"
         fan_command: speed_fast
       for: "00:00:10"
     - platform: state
       entity_id: binary_sensor.requires_kitchen_stove_ventillation
+      from: 'on'
       to: 'off'
       variables:
-        turn_off_at: "{{ now().timestamp() + 5 * 60 }}"
+        turn_off_at: "{{ now() + timedelta(minutes=5) }}"
         fan_command: speed_down
-      for: "00:01:00"
     - platform: time
       at: input_datetime.kitchen_fan_turn_off_at
       variables:
-        turn_off_at: 1
+        turn_off_at: "{{ 0 | as_datetime }}"
         fan_command: power_off
   mode: restart
   condition:
@@ -53,7 +55,7 @@ automation:
         command: "{{ fan_command }}"
     - service: input_datetime.set_datetime
       data:
-        timestamp: "{{ turn_off_at }}"
+        datetime: "{{ turn_off_at }}"
       target:
         entity_id: input_datetime.kitchen_fan_turn_off_at
       alias: Manage turn_off_at

@@ -128,8 +128,14 @@ input_select:
       - fast    # 50 C
       - swift # 60 C
       - auto
-    initial: normal
     icon: mdi:heat-wave
+  heating_preset:
+    name: Heating preset
+    options:
+      - only_hot_floor
+      - only_hot_floor_eco
+      - only_radiators
+      - both
 
 input_boolean:
   heating_enabled:
@@ -174,25 +180,52 @@ template:
         {% if is_state('binary_sensor.is_day_heating_time', 'on') %}
           0
         {% else %}
-          {{ states('input_number.night_shift_temp_desired') }}
+          {{ states('input_number.night_shift_temp_desired') | float(0) }}
         {% endif %}
       unit_of_measurement: °C
-    - name: house_max_temp_desired
+    - name: house_min_heating_temp_diff
       state_class: measurement
-      state: | 
-        {% set temp_desired = [
-            states('input_number.master_bedroom_temp_desired'),
-            states('input_number.master_bathroom_temp_desired'),
-            states('input_number.cabinet_temp_desired'),
-            states('input_number.kid_small_bedroom_temp_desired'),
-            states('input_number.kid_big_bedroom_temp_desired'),
-            states('input_number.kid_bathroom_temp_desired'),
-            states('input_number.kitchen_temp_desired'),
-            states('input_number.living_room_temp_desired'),
-            states('input_number.entrance_and_tech_room_temp_desired'),
-          ] | max | float(0)
-        %}
-        {{ temp_desired - states('sensor.current_temp_shift_desired') | float(0) }}
+      state: |
+        {% from 'state_of_entity.jinja' import state_of_entities %}
+        {{ [
+            {
+              'value': states('sensor.master_bedroom_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.master_bedroom_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.master_bathroom_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.master_bathroom_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.cabinet_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.cabinet_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.kid_small_bedroom_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.kid_small_bedroom_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.kid_big_bedroom_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.kid_big_bedroom_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.kid_bathroom_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.kid_bathroom_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.living_room_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.living_room_heating_temp_diff', 'heater_valve')) | from_json | select('eq', 'on') | first | default('off') if state_attr('sensor.living_room_heating_temp_diff', 'heater_valve') is iterable else 'unknown'
+            },
+            {
+              'value': states('sensor.kitchen_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.kitchen_heating_temp_diff', 'heater_valve'))
+            },
+            {
+              'value': states('sensor.entrance_room_heating_temp_diff'),
+              'open': state_of_entities(state_attr('sensor.entrance_room_heating_temp_diff', 'heater_valve'))
+            } 
+          ] | selectattr('open', 'eq', 'off') | map(attribute='value') | map('float', 0) | min | default(0) 
+        }}
     - name: heating_flow_temperature
       state_class: measurement
       state: |
@@ -206,131 +239,166 @@ template:
   - binary_sensor: 
     - name: is_day_heating_time
       state: "{{ 5 <= now().hour <= 21 }}"
-  
-  - binary_sensor:
-    - name: requires_heating_in_master_bedroom
+    - name: is_cheap_heating_period
+      state: "{{ 23 <= now().hour or now().hour < 7 }}"
+    - name: is_hot_floor_valves_open
       state: |
-        {% set temp_desired = states('input_number.master_bedroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.master_bedroom_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_master_bathroom
+        {{ ([
+          states('switch.heater_valve_master_bathroom_hot_floor'),
+          states('switch.heater_valve_hall_and_small_bathroom'),
+          states('switch.heater_valve_hot_floor_livingroom3'),
+          states('switch.heater_valve_hot_floor_livingroom2'),
+          states('switch.heater_valve_hot_floor_livingroom1'),
+          states('switch.heater_valve_kitchen_hot_floor'),
+          states('switch.heater_valve_hot_floor_entrance_tech_room')
+        ] | select('eq', 'off') | first) == 'off' }}
+    - name: hot_floor_pump_required
       state: |
-        {% set temp_desired = states('input_number.master_bathroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.master_bathroom_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_cabinet
+        {% if is_state('binary_sensor.is_hot_floor_valves_open', 'on') %}
+          {{
+            float(states('sensor.fireplace_fan_power'), 0) > 0 or
+            is_state('input_boolean.heating_enabled', 'on') or
+            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000
+          }}
+        {% else %}
+          off
+        {% endif %}
+
+  - sensor:
+    - name: master_bedroom_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.cabinet_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.cabinet_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_kid_small_bedroom
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('master_bedroom') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_master_bedroom 
+    - name: master_bathroom_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.kid_small_bedroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = 30 %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_kid_big_bedroom
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('master_bathroom') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_master_bathroom_hot_floor 
+    - name: cabinet_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.kid_big_bedroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.kid_big_bedroom_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_kid_bathroom
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('cabinet') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_cabinet 
+    - name: kid_small_bedroom_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.kid_bathroom_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.kid_bathroom_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_living_room
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('kid_small_bedroom') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_kid_small_bedroom 
+    - name: kid_big_bedroom_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.living_room_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.living_room_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_kitchen
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('kid_big_bedroom') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_kid_big_bedroom 
+    - name: kid_bathroom_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.kitchen_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.kitchen_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
-    - name: requires_heating_in_entrance_room
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('kid_bathroom') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_hall_and_small_bathroom 
+    - name: living_room_heating_temp_diff
+      state_class: measurement
       state: |
-        {% set temp_desired = states('input_number.entrance_room_temp_desired') | float - states('sensor.current_temp_shift_desired') | float %}
-        {% set temp_current = states('sensor.entrance_room_climate_temperature') | float %}
-        {{ temp_current < temp_desired }}
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('living_room') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: |
+          {{[
+            'switch.heater_valve_livingroom',
+            'switch.heater_valve_hot_floor_livingroom3',
+            'switch.heater_valve_hot_floor_livingroom2',
+            'switch.heater_valve_hot_floor_livingroom1',
+          ]}}
+    - name: kitchen_heating_temp_diff
+      state_class: measurement
+      state: |
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('kitchen') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_kitchen_hot_floor 
+    - name: entrance_room_heating_temp_diff
+      state_class: measurement
+      state: |
+        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
+        {{ heating_temp_diff('entrance_room') }}
+      attributes:
+        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
+        heater_valve: switch.heater_valve_hot_floor_entrance_tech_room
     - name: requires_heating
       state: |
         {{
-          is_state('binary_sensor.requires_heating_in_master_bedroom', 'on') or 
-          is_state('binary_sensor.requires_heating_in_master_bathroom', 'on') or 
-          is_state('binary_sensor.requires_heating_in_cabinet', 'on') or 
-          is_state('binary_sensor.requires_heating_in_kid_small_bedroom', 'on') or 
-          is_state('binary_sensor.requires_heating_in_kid_big_bedroom', 'on') or 
-          is_state('binary_sensor.requires_heating_in_kid_bathroom', 'on') or 
-          is_state('binary_sensor.requires_heating_in_living_room', 'on') or 
-          is_state('binary_sensor.requires_heating_in_kitchen', 'on') or 
-          is_state('binary_sensor.requires_heating_in_entrance_or_tech_room', 'on') 
+          is_state_attr('sensor.master_bedroom_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.master_bathroom_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.cabinet_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.kid_small_bedroom_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.kid_big_bedroom_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.kid_bathroom_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.living_room_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.kitchen_heating_temp_diff', 'requires_heating', 'on') or 
+          is_state_attr('sensor.entrance_room_heating_temp_diff', 'requires_heating', 'on') 
         }}
   
   - binary_sensor:
     - name: heating_valve_open_master_bedroom
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_master_bedroom', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open %}
+        {{ heating_valve_open('master_bedroom', ['only_radiators']) }}
     - name: heating_valve_open_master_bathroom
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_master_bathroom', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
+        {{ heating_valve_open_hot_floor('master_bathroom', ['only_hot_floor']) }}
     - name: heating_valve_open_cabinet
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_cabinet', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open %}
+        {{ heating_valve_open('cabinet', ['only_radiators']) }}
     - name: heating_valve_open_kid_small_bedroom
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_kid_small_bedroom', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open %}
+        {{ heating_valve_open('kid_small_bedroom', ['only_radiators']) }}
     - name: heating_valve_open_kid_big_bedroom
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_kid_big_bedroom', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open %}
+        {{ heating_valve_open('kid_big_bedroom', ['only_radiators']) }}
     - name: heating_valve_open_kid_bathroom
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_kid_bathroom', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
+        {{ heating_valve_open_hot_floor('kid_bathroom', ['only_hot_floor', 'only_hot_floor_eco']) }}
     - name: heating_valve_open_living_room
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_living_room', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open %}
+        {{ heating_valve_open('living_room', ['only_radiators']) }}
+    - name: heating_valve_open_living_room_hot_floor
+      state: |
+        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
+        {{ heating_valve_open_hot_floor('living_room', ['only_hot_floor', 'only_hot_floor_eco']) }}
     - name: heating_valve_open_kitchen
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_kitchen', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
-    - name: heating_valve_open_entrance_or_tech_room
+        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
+        {{ heating_valve_open_hot_floor('kitchen', ['only_hot_floor', 'only_hot_floor_eco']) }}
+    - name: heating_valve_open_entrance_room
       state: |
-        {{ 
-          is_state('input_boolean.heating_enabled', 'off') or
-          is_state('binary_sensor.requires_heating_in_entrance_or_tech_room', 'on') and 
-          is_state('input_boolean.heating_enabled', 'on') 
-        }}
+        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
+        {{ heating_valve_open_hot_floor('entrance_room', ['only_hot_floor']) }}
+
   - trigger:
     - platform: time_pattern
       minutes: "/1"
@@ -350,8 +418,8 @@ sensor:
     name: main_heater_energy
     round: 1
   - platform: min_max
-    name: house_avg_temp
-    type: mean
+    name: house_min_temp
+    type: min
     round_digits: 1
     entity_ids:
       - sensor.cabinet_climate_temperature

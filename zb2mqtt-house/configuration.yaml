@@ -3,9 +3,6 @@ permit_join: false
 frontend: true
 mqtt:
   base_topic: zb2mqtt
-  server: mqtt://homeassistant.lan
-  user: homeman
-  password: a92TaekCAKYc!
 devices:
   '0xdc8e95fffe15d3e7':
     friendly_name: master_bathroom
@@ -19,8 +16,6 @@ devices:
     friendly_name: master_bedroom_climate
   '0xdc8e95fffe19bdaf':
     friendly_name: house_outside
-  '0xa4c138d9f081d74c':
-    friendly_name: kitchen_stove
   '0xa4c138757bd27eb8':
     friendly_name: kitchen_light
   '0x00124b002919ab73':
@@ -69,7 +64,8 @@ devices:
     invert_cover: false
   '0x00124b0022ed0b7f':
     friendly_name: cabinet_map_light
-    transition: 1
+    availability:
+      timeout: 10
   '0xa4c13894f4dbe43b':
     friendly_name: livingroom_outside_curtain_2
   '0xa4c1387abb3d7da0':
@@ -91,7 +87,7 @@ devices:
   '0xa4c13895caeacd23':
     friendly_name: kid_big_outside_curtain
   '0xa4c1386f295ba842':
-    friendly_name: cabinet_curtaine_outside
+    friendly_name: cabinet_outside_curtain
   '0xa4c1389e40e945ff':
     friendly_name: master_bedroom_outside_curtain
   '0xa4c138fa677c9617':
@@ -119,11 +115,22 @@ devices:
   '0xf4b3b1fffe9910ff':
     friendly_name: kitchen_climate
   '0xa4c138e02b828b6b':
-    friendly_name: dohouse_hotfloor
+    friendly_name: doghouse_hotfloor
+  '0xa4c13887efe3d4ca':
+    friendly_name: kitchen_main_light_toggler
+  '0xa4c138d9f081d74c':
+    friendly_name: kitchen_stove
+  '0x00158d0008c76a5e':
+    friendly_name: '0x00158d0008c76a5e'
+  '0x842712fffe412c67':
+    friendly_name: main_entrance_outside_light
+  '0x842712fffe415c44':
+    friendly_name: entrance_room_light
+  '0xa4c13832e273637f':
+    friendly_name: kitchen_bar_light_toggler
+    vibration_timeout: 0
 advanced:
   pan_id: 6754
   log_level: warn
 external_converters:
   - converters/TS0601.js
-serial:
-  port: tcp://192.168.88.131:6638

@@ -41,7 +41,7 @@
     - platform: state
       entity_id: sensor.terrace_door_sensor
   action:
-    - service_template: "input_boolean.turn_{{ 'off' if trigger.to_state.state == 'False' else 'on' }}"
+    - service_template: "input_boolean.turn_{{ 'on' if trigger.to_state.state == 'False' else 'off' }}"
       target:
         entity_id: input_boolean.terace_door_open
 
@@ -71,3 +71,122 @@
       data:
         title: "{{ trigger.notification.title }}"
         message: "{{ trigger.notification.message }}"
+
+- id: toggle_curtains_mode
+  alias: Керування режимом ролет
+  trigger:
+    platform: state
+    entity_id: input_select.curtain_outside_mode
+  variables:
+    cover_state: "{{ 'open' if trigger.to_state.state == 'open' else 'close' }}"
+    inversed_cover_state: "{{ 'closed' if trigger.to_state.state == 'open' else 'open' }}"
+  action:
+    - service_template: "cover.{{ cover_state }}_cover"
+      target:
+        entity_id: |
+          {% set entity_ids = [] %}
+          {% if trigger.to_state.state == 'tv_watching_light_mode' %}
+            {% set entity_ids = entity_ids + [
+              'cover.livingroom_outside_curtain_1',
+              'cover.livingroom_outside_curtain_2',
+            ] %}
+          {% elif trigger.to_state.state == 'tv_watching_mode' %}
+            {% set entity_ids = entity_ids + [
+                'cover.livingroom_outside_curtain_1',
+                'cover.livingroom_outside_curtain_2',
+                'cover.terrace_outside_curtain',
+            ] %}
+          {% elif trigger.to_state.state == 'close_panoramic' %}
+            {% set entity_ids = entity_ids + [
+                'cover.livingroom_outside_curtain_1',
+                'cover.livingroom_outside_curtain_2',
+                'cover.terrace_outside_curtain',
+                'cover.master_bedroom_outside_curtain',
+            ] %}
+          {% else %}
+            {% set entity_ids = entity_ids + [
+                'cover.livingroom_outside_curtain_1',
+                'cover.livingroom_outside_curtain_2',
+                'cover.terrace_outside_curtain',
+                'cover.master_bedroom_outside_curtain',
+                'cover.kitchen_outside_curtain',
+                'cover.kid_small_outside_curtain',
+                'cover.kid_big_outside_curtain',
+                'cover.cabinet_outside_curtain',
+            ] %}
+          {% endif %}
+          {{ entity_ids | list  }}
+          
+- id: is_it_me_back_home
+  alias: Перевірка чи це я повернувся додому?
+  trigger:
+    - platform: event
+      event_type: dahua_event_received
+      event_data:
+        action: Start
+        Code: CrossRegionDetection
+        data: 
+          Direction: Enter
+          Object:
+            ObjectType: Vehicle
+          Name: garage_car_arrived
+    - platform: event
+      event_type: dahua_event_received
+      event_data:
+        action: Start
+        Code: CrossLineDetection
+        data: 
+          Direction: RightToLeft
+          Object:
+            ObjectType: Human
+          Name: yard_gates
+  condition:
+    - condition: template
+      value_template: "{{ is_state('group.residents', 'not_home') }}"
+  action:
+    - service: notify.telegram_serhii
+      data:
+        message: "Повернувся додому?"
+
+- id: solcast_forecast_sync
+  alias: Solcast_update
+  description: New API call Solcast
+  trigger:
+  - platform: time_pattern
+    hours: /2
+  condition:
+  - condition: sun
+    before: sunset
+    after: sunrise
+  action:
+  - service: solcast_solar.update_forecasts
+    data: {}
+  mode: single
+
+- id: count_number_of_switches
+  mode: parallel
+  trigger:
+    - platform: state
+      entity_id: switch.kid_bathroom
+      from: 'off'
+      to: 'on'
+      variables:
+        counter_entity_id: counter.kid_bathroom_switch
+    - platform: state
+      entity_id: switch.master_bathroom
+      from: 'off'
+      to: 'on'
+      variables:
+        counter_entity_id: counter.master_bathroom_switch
+  action:
+    - service: counter.increment
+      target:
+        entity_id: "{{ counter_entity_id }}"
+    - if: 
+      - condition: template
+        value_template: "{{ is_state(counter_entity_id, '1') }}"
+      then:
+        - delay: "00:00:03"
+        - service: counter.reset
+          target:
+            entity_id: "{{ counter_entity_id }}"

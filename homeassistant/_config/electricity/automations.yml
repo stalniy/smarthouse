@@ -3,6 +3,9 @@
   trigger:
     - platform: state
       entity_id: sensor.energy_tariff
+  condition:
+    - condition: template
+      value_template: "{{ states('sensor.energy_tariff') != 'unknown' }}"
   action:
     - service: select.select_option
       target:

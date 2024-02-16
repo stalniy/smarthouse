@@ -23,9 +23,10 @@ services:
       - /home/homeman/smarthome/zb2mqtt-house:/app/data
     environment:
       - TZ=Europe/Kyiv
+      - ZIGBEE2MQTT_CONFIG_MQTT_SERVER=mqtt://${MQTT_SERVER_HOST}
       - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USER}
       - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
-      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=tcp://192.168.88.131:6638
+      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=${ZB_HOUSE_SERIAL_PORT}
     ports:
       - 9123:8080
 
@@ -40,9 +41,10 @@ services:
       - /home/homeman/smarthome/zb2mqtt-garage:/app/data
     environment:
       - TZ=Europe/Kyiv
+      - ZIGBEE2MQTT_CONFIG_MQTT_SERVER=mqtt://${MQTT_SERVER_HOST}
       - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USER}
       - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
-      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=tcp://192.168.88.130:6638
+      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=${ZB_GARAGE_SERIAL_PORT}
     ports:
       - 9124:8080
   
@@ -52,7 +54,7 @@ services:
     restart: unless-stopped
     environment:
       - EBUSD_DEVICE
-      - EBUSD_MQTTHOST=homeassistant.lan
+      - EBUSD_MQTTHOST=${MQTT_SERVER_HOST}
       - EBUSD_MQTTPORT=1883
       - EBUSD_MQTTUSER=${MQTT_USER}
       - EBUSD_MQTTPASS=${MQTT_PASSWORD}

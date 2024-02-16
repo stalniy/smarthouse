@@ -1,0 +1,28 @@
+{% macro heating_valve_open(room_name, supported_presets) %}
+    {% if is_state('input_boolean.heating_enabled', 'off') %}
+        on
+    {% elif states('input_select.heating_preset') in (supported_presets + ["both"]) %}
+        {% set is_heating_required = is_state_attr('sensor.' ~ room_name ~ '_heating_temp_diff', 'requires_heating', 'on') %}
+        {% set is_valve_open = is_heating_required and is_state('input_boolean.heating_enabled', 'on') %}
+        {{ 'on' if is_valve_open else 'off' }}
+    {% else %}
+        off
+    {% endif %}
+{% endmacro %}
+
+{% macro heating_valve_open_hot_floor(room_name, supported_presets) %}
+    {% if is_state('input_boolean.heating_enabled', 'off') %}
+        on
+    {% elif states('input_select.heating_preset') in (supported_presets + ["both"]) %}
+        {% set is_heating_required = is_state_attr('sensor.' ~ room_name ~ '_heating_temp_diff', 'requires_heating', 'on') %}
+        {% set is_valve_open = is_heating_required and 
+            is_state('input_boolean.heating_enabled', 'on') or
+            is_state('binary_sensor.is_day_heating_time', 'on') and
+            is_state('binary_sensor.is_cheap_heating_period') 
+        %}
+        {{ 'on' if is_valve_open else 'off' }}
+    {% else %}
+        'off'
+    {% endif %}
+{% endmacro %}
+

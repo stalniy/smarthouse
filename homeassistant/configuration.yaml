@@ -33,23 +33,26 @@ device_tracker:
 panel_iframe:
   zbhouse:
     title: House ZB
-    url: http://homeassistant.lan:9123/
+    url: http://192.168.31.10:9123/
     icon: mdi:home-automation
     require_admin: true
 
   zbgarage:
     title: Garage ZB
-    url: http://homeassistant.lan:9124/
+    url: http://192.168.31.10:9124/
     icon: mdi:home-automation
     require_admin: true
 
 ebusd:
-  host: homeassistant.lan
+  host: 192.168.31.10
   circuit: bai
   name: Main heater
 
 
 homeassistant:
+  allowlist_external_dirs:
+    - "/tmp"
+
   packages:
     core: !include _config/core/main.yml
     heating: !include _config/heating/main.yml
@@ -58,16 +61,22 @@ homeassistant:
     cleaning: !include _config/cleaning/main.yml
     ventilation: !include _config/ventilation/main.yml
     ventillation_kitchen_stove: !include _config/ventillation_kitchen_stove/main.yml
-    livingroom_light_control: !include _config/livingroom_light_control/main.yml
+    # livingroom_light_control: !include _config/livingroom_light_control/main.yml
+    kitchen_light_control: !include _config/kitchen_light/main.yml
     security: !include _config/security/main.yml
     doghouse: !include _config/doghouse/main.yml
+    camera: !include _config/camera/main.yml
+    outside_light: !include _config/outside_light/main.yml
 
 python_script:
+ffmpeg:
 
 logger:
   default: warning
   logs:
     homeassistant.components.python_script.heating_ebus_sync.py: info
+    # custom_components.dahua: debug
+
 
 lovelace:
   resources:
@@ -78,3 +87,7 @@ recorder:
   auto_purge: false
   auto_repack: false
   db_url: !secret recorder_db_url
+  # include:
+  #   entities:
+
+custom_jinja2_filters:

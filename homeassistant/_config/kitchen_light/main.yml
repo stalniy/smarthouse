@@ -1,0 +1,45 @@
+automation:
+  - id: toggle_kitchen_light
+    alias: Kitchen light control
+    mode: restart
+    trigger:  
+      - platform: mqtt
+        topic: zb2mqtt/kitchen_main_light_toggler
+        variables: 
+          process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
+          new_state: "{{ 'on' if is_state('light.kitchen_light', 'off') else 'off' }}"
+      - platform: state
+        entity_id: binary_sensor.kitchen_motion
+        to: 'on'
+        variables:
+          process_trigger: "{{ is_state('binary_sensor.is_dark', 'on') }}"
+      - platform: state
+        entity_id: binary_sensor.kitchen_motion
+        to: 'off'
+        for: "00:10:00"
+        variables:
+          process_trigger: true
+          new_state: "off"
+    condition:
+      - condition: template
+        value_template: "{{ process_trigger }}"
+    action:
+      - service_template: "light.turn_{{ new_state }}"
+        target:
+          entity_id: light.kitchen_light
+  - id: toggle_kitchen_bar_light
+    alias: Kitchen bar light control
+    mode: restart
+    trigger:  
+      - platform: mqtt
+        topic: zb2mqtt/kitchen_bar_light_toggler
+        variables: 
+          process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
+          new_state: "{{ 'on' if is_state('light.kitchen_bar', 'off') else 'off' }}"
+    condition:
+      - condition: template
+        value_template: "{{ process_trigger }}"
+    action:
+      - service_template: "light.turn_{{ new_state }}"
+        target:
+          entity_id: light.kitchen_bar

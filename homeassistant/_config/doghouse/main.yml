@@ -16,6 +16,6 @@ automation:
         entity_id: group.residents
         state: home
     action: 
-      - service_template: "switch.{{ heating_state }}" 
+      - service_template: "switch.turn_{{ heating_state }}" 
         target:
-          entity_id: switch.dohouse_hotfloor
+          entity_id: switch.doghouse_hotfloor

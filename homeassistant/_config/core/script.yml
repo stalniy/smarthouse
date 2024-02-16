@@ -1,0 +1,24 @@
+light_feedback:
+  alias: Light feedback
+  mode: single
+  description: |
+    Light feedback about accepted operation
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          filter:
+            - domain: switch
+  variables:
+    current_state: "{{ states(entity_id) }}"
+    inversed_state: "{{ 'off' if is_state(entity_id, 'on') else 'on' }}"
+  sequence:
+    - service_template: "switch.turn_{{ inversed_state }}"
+      target:
+        entity_id: "{{ entity_id }}"
+    - delay: "00:00:01"
+    - service_template: "switch.turn_{{ current_state }}"
+      target:
+        entity_id: "{{ entity_id }}"
