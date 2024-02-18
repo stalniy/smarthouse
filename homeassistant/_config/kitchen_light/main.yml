@@ -13,6 +13,7 @@ automation:
         to: 'on'
         variables:
           process_trigger: "{{ is_state('binary_sensor.is_dark', 'on') }}"
+          new_state: 'on'
       - platform: state
         entity_id: binary_sensor.kitchen_motion
         to: 'off'
