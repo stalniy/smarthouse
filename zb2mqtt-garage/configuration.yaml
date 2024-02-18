@@ -28,5 +28,7 @@ devices:
     friendly_name: basement_light
   '0xe0798dfffecc8ab2':
     friendly_name: basement_climate
+  '0xa4c138fd78701cba':
+    friendly_name: water_pump
 device_options:
   legacy: false

@@ -21,7 +21,16 @@ automation:
     action:
       - service: camera.snapshot
         target:
-          entity_id: camera.camera_house_entrance_sub
+          entity_id: >-
+            {% set entity_name_to_id = {
+              'Camera house entrance': 'camera.camera_house_entrance_sub',
+              'Camera house terace': 'camera.camera_house_terace_sub',
+              'Camera house east': 'camera.camera_house_east_sub',
+              'Camera garage gates': 'camera.camera_garage_gates_sub',
+              'Camera garage back': 'camera.camera_garage_back_sub',
+              'Camera between house and garage': 'camera.camera_between_house_and_garage_sub',
+            } %}
+            {{ entity_name_to_id[trigger.event.data.DeviceName] }}
         data:
           filename: "{{ photo_path }}"
       # - service: notify.telegram_serhii
@@ -45,13 +54,17 @@ automation:
       event_data:
         action: Start
         Code: CrossLineDetection
-        data:
-          Direction: LeftToRight
-          Name: yard_gates
-          Object:
-            ObjectType: Human
       variables:
         photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg"
+    condition:
+      - condition: template
+        value_template: |
+          {% set event = trigger.event.data.data %}
+          {{ 
+            event.Direction == 'LeftToRight' and 
+            event.Name == 'yard_gates' and
+            event.Object.ObjectType == 'Human'
+          }}
     action:   
       - service: notify.telegram_serhii
         data:
