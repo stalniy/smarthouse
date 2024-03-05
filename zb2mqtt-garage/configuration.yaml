@@ -10,8 +10,6 @@ advanced:
   legacy_api: false
   legacy_availability_payload: false
 devices:
-  '0xa4c13839d09f599d':
-    friendly_name: garage_gates_power
   '0xa4c1385bc5eff6a7':
     friendly_name: garage_gates_bot_right
   '0xa4c13819b8e35f59':
@@ -30,5 +28,10 @@ devices:
     friendly_name: basement_climate
   '0xa4c138fd78701cba':
     friendly_name: water_pump
+  '0x842712fffe513420':
+    friendly_name: garage_yard_light
+  '0xa4c138e02b828b6b':
+    friendly_name: garage_gates_power
+    voltage_precision: ''
 device_options:
   legacy: false

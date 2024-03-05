@@ -6,56 +6,38 @@
     - platform: state
       entity_id: binary_sensor.garage_gates_right_open_contact
   action:
-    - service: notify.telegram_serhii
-      data:
+    - event: important_home_event
+      event_data:
         message: >-
           {{ "Ліві" if "_left_" in trigger.entity_id else "Праві" }} ворота 
           {{ "відкрито" if trigger.to_state.state == "on" else "закрито" }}
           ({{ trigger.to_state.state }})
   mode: parallel
 
-- id: ensure_gates_are_closed_on_home_leave
-  alias: "Гараж: Закрити ворота коли покидаємо будинок"
+- id: ensure_gates_are_closed
+  alias: "Гараж: Закрити ворота"
   trigger:
     - platform: state
       entity_id: group.residents
       to: not_home
     - platform: event
-      event_type: telegram_command
+      event_type: external_command
       event_data:
         command: /close_garage_gates
+    - platform: state
+      entity_id: binary_sensor.is_main_door_unlocked
+      from: 'off'
+      to: 'on'
+    - platform: state
+      entity_id: binary_sensor.is_terace_door_unlocked
+      from: 'off'
+      to: 'on'
   action:
     - service: switch.turn_off
       entity_id: 
         - switch.garage_gates_left_open
         - switch.garage_gates_right_open
   mode: single
-
-- id: close_gates_when_going_to_house
-  alias: Закрити ворота, коли йдемо в будинок
-  trigger:
-    - platform: event
-      event_type: dahua_event_received
-      event_data:
-        action: Start
-        Code: CrossLineDetection
-        data: 
-          Direction: RightToLeft
-          Object:
-            ObjectType: Human
-          Name: garage_home_direction
-  condition:
-    - condition: template
-      value_template: |
-        {{
-          (is_state('binary_sensor.garage_gates_left_open_contact', 'on') or
-          is_state('binary_sensor.garage_gates_right_open_contact', 'on'))
-        }}
-  action:
-    - service: notify.telegram_serhii
-      data:
-        message: >-
-          Йдеш в будинок? Закрий ворота: /close\_garage\_gates
 
 - id: power_off_garage_gates_when_closed
   alias: "Гараж: Вимкнути живлення на ворота, коли закрились"
@@ -100,17 +82,18 @@
     event_data:
       action: Start
       Code: CrossLineDetection
-      data:
-        Direction: LeftToRight
-        Name: house_near_stairs
   condition:
     - condition: template
       value_template: |
         {{ 
+          trigger.event.data.data.Name in ['house_near_stairs', 'garage_home_direction', 'house_entrance'] and
+          trigger.event.data.data.Direction == 'LeftToRight' and
           is_state('binary_sensor.garage_gates_left_open_contact', 'off') and
           is_state('binary_sensor.garage_gates_right_open_contact', 'off') and
-          is_state('switch.garage_gates_power', 'off') and
-          is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on')
+          is_state('switch.garage_gates_power', 'off') and (
+            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') or
+            is_state('binary_sensor.camera_garage_gates_smart_motion_human', 'on')
+          )
         }}
   action:
     - service: switch.turn_on
@@ -139,8 +122,54 @@
               is_state('binary_sensor.garage_gates_right_open_contact', 'on')
             }}
       then:
-        - service: notify.telegram_serhii
-          data:
+        - event: important_home_event
+          event_data:
             message: >-
               Вимикаю живлення на воротах. 
-              Тисни /close\_garage\_gates, щоб закрити їх
+              Тисни /close_garage_gates, щоб закрити їх
+
+# - id: open_garage_gate_when_going_out
+#   mode: single
+#   trigger:
+#     platform: state
+#     entity_id: binary_sensor.is_main_door_unlocked
+#     from: 'on'
+#     to: 'off'
+#   condition:
+#     - condition: template
+#       value_template: "{{ is_state('group.residents', 'home') }}"
+#   action:
+#     - wait_for_trigger:
+#         platform: event
+#         event_type: yard_crossed_line
+#         event_data: 
+#           name: house_near_stairs
+#           direction: LeftToRight
+#       timeout: "00:05"
+#       continue_on_timeout: false
+#     - wait_template: "{{ is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') }}"
+#       timeout: "00:00:30"
+#       continue_on_timeout: false
+#     - wait_for_trigger:
+#         platform: event
+#         event_type: yard_crossed_line
+#         event_data:
+#           name: garage_home_direction
+#           direction: LeftToRight
+#           object_type: Human
+#       timeout: "00:05:00"
+#       continue_on_timeout: false
+#     - wait_for_trigger:
+#         platform: event
+#         event_type: yard_crossed_line
+#         event_data:
+#           name: yard_gates
+#           direction: LeftToRight
+#           object_type: Human
+#       timeout: "00:05:00"
+#       continue_on_timeout: false
+#     - condition: template
+#       value_template: "{{ is_state('group.residents', 'home') }}"
+#     - service: switch.turn_on
+#       target:
+#         entity_id: switch.garage_gates_left_open

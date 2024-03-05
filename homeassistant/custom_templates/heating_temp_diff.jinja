@@ -1,5 +1,0 @@
-{% macro heating_temp_diff(room_name) %}
-    {% set temp_desired = float(states('input_number.' ~ room_name ~ '_temp_desired'), 0) - float(states('sensor.current_temp_shift_desired'), 0) %}
-    {% set temp_current = float(states('sensor.' ~ room_name ~ '_climate_temperature'), temp_desired) %}
-    {{ temp_current - temp_desired }}
-{% endmacro %}

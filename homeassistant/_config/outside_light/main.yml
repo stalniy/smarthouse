@@ -1,27 +1,72 @@
 template:
   - binary_sensor:
-    - name: outside_front_light_needed
+    - name: main_entrance_outside_light_needed
       state: |
         {{ 
           is_state('group.residents', 'home') and
           is_state('binary_sensor.is_dark', 'on') and (
-            is_state('binary_sensor.camera_garage_gates_smart_motion_human', 'on') or 
-            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on')
+            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') or
+            is_state('binary_sensor.camera_between_house_and_garage_smart_motion_human', 'on')
           )
+        }}
+    - name: garage_front_outside_light_needed
+      state: |
+        {{ 
+          is_state('group.residents', 'home') and
+          is_state('binary_sensor.is_dark', 'on') and (
+            is_state('binary_sensor.camera_garage_gates_smart_motion_human', 'on') or
+            is_state('binary_sensor.camera_garage_gates_smart_motion_vehicle', 'on') 
+          )
+        }}
+    - name: garage_back_outside_light_needed
+      state: |
+        {{
+          is_state('group.residents', 'home') and
+          is_state('binary_sensor.is_dark', 'on') and 
+          is_state('binary_sensor.camera_garage_back_smart_motion_human', 'on')
         }}
 
 automation:
   - id: toggle_outside_light_on_human
     alias: Зовнішнє світло
+    mode: parallel
     trigger:
       - platform: state
-        entity_id: binary_sensor.outside_front_light_needed
+        entity_id: binary_sensor.main_entrance_outside_light_needed
         to: "on"
+        variables: 
+          switch_entity_id: switch.main_entrance_outside_light
       - platform: state
-        entity_id: binary_sensor.outside_front_light_needed
+        entity_id: binary_sensor.main_entrance_outside_light_needed
         to: "off"
         for: "00:03:00"
+        variables: 
+          switch_entity_id: switch.main_entrance_outside_light
+
+      - platform: state
+        entity_id: binary_sensor.garage_front_outside_light_needed
+        to: "on"
+        variables: 
+          switch_entity_id: switch.garage_light_outside
+      - platform: state
+        entity_id: binary_sensor.garage_front_outside_light_needed
+        to: "off"
+        for: "00:03:00"
+        variables: 
+          switch_entity_id: switch.garage_light_outside
+      
+      - platform: state
+        entity_id: binary_sensor.garage_back_outside_light_needed
+        to: "on"
+        variables: 
+          switch_entity_id: switch.garage_yard_light
+      - platform: state
+        entity_id: binary_sensor.garage_back_outside_light_needed
+        to: "off"
+        for: "00:01:00"
+        variables: 
+          switch_entity_id: switch.garage_yard_light
     action:
       - service_template: "switch.turn_{{ trigger.to_state.state }}"
         target:
-          entity_id: switch.main_entrance_outside_light
+          entity_id: "{{ switch_entity_id }}"

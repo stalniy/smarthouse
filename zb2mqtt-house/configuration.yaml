@@ -53,6 +53,7 @@ devices:
     friendly_name: livingroom_tracking_light_21
   '0xa4c13867e6ec9234':
     friendly_name: heater_valves
+    invert_switch: false
   '0xa4c138ce682ec97e':
     friendly_name: hot_floor_pump
   '0xa4c13802a9df891a':
@@ -73,7 +74,7 @@ devices:
   '0xf4b3b1fffe9922f8':
     friendly_name: living_room_climate
   '0xa4c138e918dcb971':
-    friendly_name: kid_bathroom_button
+    friendly_name: tv_button
   '0xa4c1388c226303c4':
     friendly_name: master_bathroom_button
   '0xa4c138700aa8a343':
@@ -105,7 +106,8 @@ devices:
   '0xa4c13874ed7dc3c1':
     friendly_name: kitchen_socket_left1
   '0xa4c1389fc38ce599':
-    friendly_name: kitchen_table_light
+    friendly_name: livingroom_tv_light
+    transition: 1
   '0xa4c1385c65126c30':
     friendly_name: livingroom_tracking_light_23
   '0x385b44fffe1b2520':
@@ -121,7 +123,7 @@ devices:
   '0xa4c138d9f081d74c':
     friendly_name: kitchen_stove
   '0x00158d0008c76a5e':
-    friendly_name: '0x00158d0008c76a5e'
+    friendly_name: main_entrance_lock
   '0x842712fffe412c67':
     friendly_name: main_entrance_outside_light
   '0x842712fffe415c44':
@@ -129,6 +131,12 @@ devices:
   '0xa4c13832e273637f':
     friendly_name: kitchen_bar_light_toggler
     vibration_timeout: 0
+  '0x00158d0008c7b364':
+    friendly_name: '0x00158d0008c7b364'
+  '0xa4c138ce135e538a':
+    friendly_name: terace_door_lock
+  '0xa4c138b6e99fbf5f':
+    friendly_name: livingroom_tv
 advanced:
   pan_id: 6754
   log_level: warn

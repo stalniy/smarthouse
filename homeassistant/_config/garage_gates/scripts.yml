@@ -21,11 +21,8 @@ toggle_garage_gate:
     - condition: template
       value_template: "{{ states(open_contact_entity_id) != expected_state }}"
     - if:
-        - condition: device
-          domain: switch
-          type: is_off
-          device_id: 64161082b8b71db7e3a26e6fed8fc4d1
-          entity_id: switch.garage_gates_power
+        - condition: template
+          value_template: "{{ is_state('switch.garage_gates_power', 'off') }}"
       then:
         - service: switch.turn_on
           entity_id: switch.garage_gates_power
@@ -51,7 +48,8 @@ toggle_home_state_from_car:
             dev_id: serhii_phone_shortcut
             location_name: home
         - service: switch.turn_on
-          entity_id: switch.garage_gates_left_open
+          target:
+            entity_id: switch.garage_gates_left_open
       else:
         - service: device_tracker.see
           data:
@@ -59,3 +57,19 @@ toggle_home_state_from_car:
             location_name: not_home
   mode: single
   icon: mdi:car
+
+open_garage_from_nfc_tag:
+  alias: Open garage from NFC tag
+  sequence:
+  - if:
+      - condition: state
+        entity_id: person.serhii
+        state: not_home
+    then:
+      - service: device_tracker.see
+        data:
+          dev_id: serhii_phone_shortcut
+          location_name: home
+  - service: switch.turn_on
+    target:
+      entity_id: switch.garage_gates_left_open

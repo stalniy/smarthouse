@@ -28,6 +28,11 @@ input_select:
       - close_panoramic
       - close_everything
       - open
+  family_state:
+    name: Стан сім'ї
+    options:
+      - awaken
+      - sleeping
 
 counter:
   kid_bathroom_switch:
@@ -62,9 +67,15 @@ template:
       state: |
         {{ 
           is_state('sun.sun', 'below_horizon') or
-          now().timestamp() + 1.5 * 60 * 60 >= as_datetime(states('sensor.sun_next_setting')).timestamp() or
+          now().timestamp() + 15 * 60 >= as_datetime(states('sensor.sun_next_setting')).timestamp() or
           now().hour >= 22 or now().hour < 1
         }}
+    - name: is_main_door_unlocked
+      device_class: lock
+      state: "{{ is_state('binary_sensor.main_entrance_lock_contact', 'off') }}"
+    - name: is_terace_door_unlocked
+      device_class: lock
+      state: "{{ is_state('binary_sensor.terace_door_lock_water_leak', 'off') }}"
 
 command_line:
   - switch:
@@ -76,21 +87,6 @@ command_line:
       value_template: >-
         {{ value == '"on"' }}
       # availability: "{{ value_json.error == 0 }}"
-
-# switch:
-#   - platform: command_line
-#     resource: !secret water_heater_resource_url
-#     # method: POST
-#     body_on: !secret water_heater_body_on
-#     body_off: !secret water_heater_body_off
-#     value_template: "{{ value_json.error == 0 and value_json.data.switches[0].switch == 'on' }}"
-#     availability: "{{ value_json.error == 0 }}"
-#     scan_interval: 60
-#     timeout: 100
-#     headers:
-#       Content-Type: application/json
-#     device_class: switch
-    # name: water_heater_2k
         
 automation: !include ./automations.yml
 script: !include ./script.yml

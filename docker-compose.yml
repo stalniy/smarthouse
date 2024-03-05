@@ -71,7 +71,17 @@ services:
     - /home/homeman/smarthome/ebusd/ha.cfg:/etc/ebusd/ha.cfg
     - /home/homeman/smarthome/ebusd/config:/etc/ebusd-config
     network_mode: host
-    
+  
+  signal-cli-rest-api:
+    container_name: signal-rest-api
+    image: bbernhard/signal-cli-rest-api:latest
+    environment:
+      - MODE=normal #supported modes: json-rpc, native, normal. json-prc is recommended for speed
+    ports:
+      - 9135:8080
+    volumes:
+      - "./signal-cli:/home/.local/share/signal-cli"
+
   mq:
     container_name: mqtt
     image: eclipse-mosquitto

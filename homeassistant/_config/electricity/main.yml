@@ -51,6 +51,7 @@ template:
         {{ states('sensor.monthly_energy_day_cost') | float + states('sensor.monthly_energy_night_cost') | float }}
       unit_of_measurement: UAH
     - name: energy_cost
+      unit_of_measurement: UAH/kWh
       state_class: measurement
       state: >-
         {% if states('sensor.energy_tariff') == 'day' %}
@@ -84,5 +85,18 @@ template:
             | count 
           %}
           {{ ok_phases > 0 }}
+      - name: inverter_connected_to_grid
+        state: |
+          {{ 
+            [
+              states('sensor.power_consumption_voltage_y'), 
+              states('sensor.lux_grid_voltage_live')
+            ] | map('float', 0)
+              | select('>', 0)
+              | list
+              | count > 0
+          }}
+
+
 
 automation: !include ./automations.yml

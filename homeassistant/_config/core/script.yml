@@ -22,3 +22,14 @@ light_feedback:
     - service_template: "switch.turn_{{ current_state }}"
       target:
         entity_id: "{{ entity_id }}"
+
+go_sleep:
+  alias: time to sleep
+  mode: single
+  description: routine to run when go to sleep
+  sequence:
+    - service: input_select.select_option
+      data:
+        option: sleeping
+      target:
+        entity_id: "input_select.family_state"

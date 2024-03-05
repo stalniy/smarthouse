@@ -2,11 +2,6 @@
   alias: "Прибрати ванну"
   mode: queued
   trigger:
-    - platform: state
-      entity_id: sensor.kid_bathroom_button_action
-      to: single
-      variables:
-        bathroom_id: child_bathroom
     - platform: template
       value_template: "{{ is_state('counter.kid_bathroom_switch', '3') }}"
       variables:
@@ -17,22 +12,32 @@
       variables:
         bathroom_id: master_bathroom
         feedback_entity_id: switch.master_bathroom
-    - platform: state
-      entity_id: sensor.master_bathroom_button_action
-      to: single
-      variables:
-        bathroom_id: master_bathroom
   action:
+    - service: script.light_feedback
+      data:
+        entity_id: "{{ feedback_entity_id }}"
     - service: script.vacuum_clean
       data:
         rooms: 
           - "{{ bathroom_id }}"
         repeats: 2
-    - condition: template
-      value_template: "{{ feedback_entity_id is defined }}"
-    - service: script.light_feedback
-      data:
-        entity_id: "{{ feedback_entity_id }}"
+        fan_speed: max
+    - if: 
+        - condition: template
+          value_template: |
+            {{ 
+              is_state('binary_sensor.roborock_s7_mop_attached', 'on') and
+              is_state('binary_sensor.roborock_s7_water_box_attached', 'on') 
+            }}
+      then:
+        - service: script.vacuum_clean
+          data:
+            rooms: 
+              - "{{ bathroom_id }}"
+            repeats: 2
+            fan_speed: 'off'
+            mop_intensity: intense
+            mop_mode: deep_plus
 
 - id: clean_zone
   alias: "Прибрати зону"
@@ -42,12 +47,17 @@
       entity_id: sensor.fireplace_button_action
       to: single
       variables:
-        zone_name: fireplace
+        zones_to_clean: [fireplace]
+    - platform: state
+      entity_id: sensor.fireplace_button_action
+      to: double
+      variables:
+        zones_to_clean: [fireplace, terrace_exit]
   action:
     - service: script.vacuum_clean_zone
       data:
-        zones:
-          - "{{ zone_name }}"
+        zones: "{{ zones_to_clean }}"
+        fan_speed: max
 
 - id: clean_house
   alias: Прибирання будинку
@@ -61,7 +71,7 @@
         - group.residents
       to: not_home
     - platform: event
-      event_type: telegram_command
+      event_type: external_command
       event_data:
         command: /clean_house
       variables:
@@ -93,21 +103,47 @@
           target:
             entity_id: input_datetime.last_cleaned_at
         - service: script.vacuum_clean
-          alias: Почати прибирання
+          alias: Пилососити
           data:
             rooms: "{{ states('sensor.rooms_to_clean_today') | from_json }}"
+            mop_intensity: 'off'
+            fan_speed: turbo
         - service: script.vacuum_clean
-          alias: Прибрати вхідну кімнату
+          alias: Пилососити вхідну кімнату
           data: 
             rooms: [main_entrance_room]
-            repeats: 3
+            repeats: 2
+            fan_speed: max
+            mop_intensity: 'off'
+        - if: 
+            - condition: template
+              value_template: >-
+                {{ 
+                  is_state('binary_sensor.roborock_s7_mop_attached', 'on') and
+                  is_state('binary_sensor.roborock_s7_water_box_attached', 'on') 
+                }}
+          then:
+            - service: script.vacuum_clean
+              alias: Мити підлогу
+              data:
+                rooms: "{{ states('sensor.rooms_to_clean_today') | from_json }}"
+                fan_speed: 'off'
+                mop_intensity: custom
+            - service: script.vacuum_clean
+              alias: Мити вхідну кімнату
+              data: 
+                rooms: [main_entrance_room]
+                fan_speed: 'off'
+                mop_intensity: intense
+                mop_mode: deep_plus
+        
       else:
-        - service: notify.telegram_serhii
-          data:
+        - event: important_home_event
+          event_data:
             message: |
               Час поприбирати зміщено на коли Ви покинете будинок. Буде прибрано:
-              - {{ states('sensor.rooms_to_clean_today') | from_json | join('\n -') | replace('_', '\_') }}
-              Щоб прибрати зараз тисни /clean\_house
+              - {{ states('sensor.rooms_to_clean_today') | from_json | join('\n -') }}
+              Щоб прибрати зараз тисни /clean_house
           alias: Сповіщення про прибирання
   mode: single
 
@@ -116,7 +152,10 @@
     platform: state
     entity_id: vacuum.bruce
     to: returning
-    for: 00:00:03
+    for: 00:00:05
+  condition:
+    - condition: template
+      value_template: "{{ states('vacuum.bruce') == 'returning' }}"
   action:
     - service: vacuum.set_fan_speed
       target:

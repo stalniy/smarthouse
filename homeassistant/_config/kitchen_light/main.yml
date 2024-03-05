@@ -7,7 +7,7 @@ automation:
         topic: zb2mqtt/kitchen_main_light_toggler
         variables: 
           process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
-          new_state: "{{ 'on' if is_state('light.kitchen_light', 'off') else 'off' }}"
+          new_state: "on"
       - platform: state
         entity_id: binary_sensor.kitchen_motion
         to: 'on'
@@ -17,7 +17,7 @@ automation:
       - platform: state
         entity_id: binary_sensor.kitchen_motion
         to: 'off'
-        for: "00:10:00"
+        for: "00:03:00"
         variables:
           process_trigger: true
           new_state: "off"
@@ -36,7 +36,7 @@ automation:
         topic: zb2mqtt/kitchen_bar_light_toggler
         variables: 
           process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
-          new_state: "{{ 'on' if is_state('light.kitchen_bar', 'off') else 'off' }}"
+          new_state: "on"
     condition:
       - condition: template
         value_template: "{{ process_trigger }}"
