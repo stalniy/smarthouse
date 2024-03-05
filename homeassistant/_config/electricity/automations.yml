@@ -22,7 +22,7 @@
       at: 07:00
       id: monthly_report
     - platform: event
-      event_type: telegram_command
+      event_type: external_command
       event_data: 
         command: /energy_summary
       id: current_report
@@ -31,8 +31,8 @@
       value_template: |
         {{ trigger.id == 'current_report' or (trigger.id == 'monthly_report' and now().day == 1) }}
   action:
-    - service: notify.telegram_serhii
-      data:
+    - event: important_home_event
+      event_data:
         message: |
           {% if trigger.id == 'monthly_report' %}
             {{"\U0001F4C5"}} Новий комунальний місяць
@@ -50,12 +50,12 @@
       entity_id: binary_sensor.has_connection_to_main
       for: 00:05:00
     - platform: event
-      event_type: telegram_command
+      event_type: external_command
       event_data:
         command: /energy_main_state
   action: 
-    - service: notify.telegram_serhii
-      data:
+    - event: important_home_event
+      event_data:
         message: | 
           {% if is_state('binary_sensor.has_connection_to_main', 'on') %}
             З'явилась мережа.

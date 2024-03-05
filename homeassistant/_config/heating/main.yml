@@ -1,4 +1,5 @@
 automation: !include ./automations.yml
+script: !include ./scripts.yml
 
 homeassistant:
   customize:
@@ -13,103 +14,53 @@ homeassistant:
       max: 75
       step: 1
       mode: slider
-
+    climate.master_bedroom:
+      location: house
+      heater_type: radiator 
+    climate.master_bathroom_hotfloor:
+      heater_type: hotfloor
+      location: house
+    climate.cabinet:
+      heater_type: radiator
+      location: house
+    climate.kid_small_bedroom:
+      heater_type: hotfloor
+      location: house
+    climate.kid_big_bedroom:
+      heater_type: radiator
+      location: house
+    climate.kid_bathroom_hotfloor:
+      heater_type: hotfloor
+      location: house
+    climate.livingroom:
+      heater_type: radiator
+      location: house
+    climate.livingroom_hotfloor_table:
+      heater_type: hotfloor
+      heater_importance: high
+      location: house
+    climate.livingroom_hotfloor_fireplace:
+      heater_type: hotfloor
+      heater_importance: high
+      location: house
+    climate.livingroom_hotfloor_exit:
+      heater_type: hotfloor
+      heater_importance: high
+      location: house
+    climate.kitchen_hotfloor:
+      heater_type: hotfloor
+      heater_importance: high
+      location: house
+    climate.entrance_room_hotfloor:
+      heater_type: hotfloor
+      location: house
 input_number: 
-  master_bedroom_temp_desired:
-    name: Доросла спальня 
-    initial: 19
-    min: 5
-    max: 25
-    step: 1 
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  master_bathroom_temp_desired:
-    name: Доросла ванна 
-    initial: 19
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  cabinet_temp_desired:
-    name: Кабінет 
-    initial: 19
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  kid_small_bedroom_temp_desired:
-    name: Дитяча мала спальня 
-    initial: 19
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  kid_big_bedroom_temp_desired:
-    name: Дитяча велика спальня 
-    initial: 19
-    min: 5
-    max: 25
-    step: 1 
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  kid_bathroom_temp_desired:
-    name: Дитяча ванна 
-    initial: 19
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  kitchen_temp_desired:
-    name: Кухня
-    initial: 19
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  living_room_temp_desired:
-    name: Вітальня
-    initial: 19
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-  entrance_room_temp_desired:
-    name: Вхідна кімната
-    initial: 18
-    min: 5
-    max: 25
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-
-  night_shift_temp_desired:
-    name: Нічне пониження темп.
-    min: 0
-    max: 10
-    step: 1
-    icon: mdi:home-thermometer
-    unit_of_measurement: °C
-
   main_heater_storage_temp_desired:
     name: Бажана темп. ГВС
     min: 35
     max: 70
     step: 1
     icon: mdi:thermometer-water
-    unit_of_measurement: °C
-
-  heating_last_flowtemp: 
-    name: Останнє значення температури носія 
-    min: 0
-    max: 100
-    step: 1
-    icon: mdi:thermometer
     unit_of_measurement: °C
 
 input_datetime: 
@@ -136,12 +87,26 @@ input_select:
       - only_hot_floor_eco
       - only_radiators
       - both
-
 input_boolean:
   heating_enabled:
     name: Включити опалення
   hwc_enabled: 
     name: Включити ГВС
+  # because I have NO heating valves, I need thermostat to somewhere store its desired state
+  # so then I can understand whether heating is required or not based on `hvac_action` attribute
+  # and be able to optimize electisity usage by opening valves when heater doesn't heat
+  thermostat_driven_heater_valve_master_bedroom:
+  thermostat_driven_heater_valve_master_bathroom_hot_floor:
+  thermostat_driven_heater_valve_cabinet:
+  thermostat_driven_heater_valve_kid_small_bedroom:
+  thermostat_driven_heater_valve_kid_big_bedroom:
+  thermostat_driven_heater_valve_hall_and_small_bathroom:
+  thermostat_driven_heater_valve_livingroom:
+  thermostat_driven_heater_valve_hot_floor_livingroom1:
+  thermostat_driven_heater_valve_hot_floor_livingroom2:
+  thermostat_driven_heater_valve_hot_floor_livingroom3:
+  thermostat_driven_heater_valve_kitchen_hot_floor:
+  thermostat_driven_heater_valve_hot_floor_entrance_tech_room:
 
 template:
   - sensor:
@@ -174,73 +139,21 @@ template:
           | join(',\n')
         %}
         {{ 'none' if result == '' else result }}
-    - name: current_temp_shift_desired
-      state_class: measurement
-      state: |
-        {% if is_state('binary_sensor.is_day_heating_time', 'on') %}
-          0
-        {% else %}
-          {{ states('input_number.night_shift_temp_desired') | float(0) }}
-        {% endif %}
-      unit_of_measurement: °C
     - name: house_min_heating_temp_diff
       state_class: measurement
       state: |
-        {% from 'state_of_entity.jinja' import state_of_entities %}
-        {{ [
-            {
-              'value': states('sensor.master_bedroom_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.master_bedroom_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.master_bathroom_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.master_bathroom_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.cabinet_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.cabinet_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.kid_small_bedroom_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.kid_small_bedroom_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.kid_big_bedroom_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.kid_big_bedroom_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.kid_bathroom_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.kid_bathroom_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.living_room_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.living_room_heating_temp_diff', 'heater_valve')) | from_json | select('eq', 'on') | first | default('off') if state_attr('sensor.living_room_heating_temp_diff', 'heater_valve') is iterable else 'unknown'
-            },
-            {
-              'value': states('sensor.kitchen_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.kitchen_heating_temp_diff', 'heater_valve'))
-            },
-            {
-              'value': states('sensor.entrance_room_heating_temp_diff'),
-              'open': state_of_entities(state_attr('sensor.entrance_room_heating_temp_diff', 'heater_valve'))
-            } 
-          ] | selectattr('open', 'eq', 'off') | map(attribute='value') | map('float', 0) | min | default(0) 
-        }}
-    - name: heating_flow_temperature
-      state_class: measurement
-      state: |
-        {% if states('sensor.ebusd_bai_positionvalveset') == 'Heating' %}
-          {{ states('sensor.ebusd_bai_flowtemp_temp') }}
-        {% else %}
-          {{ states('input_number.heating_last_flowtemp') }}
-        {% endif %}
-      unit_of_measurement: °C
-
+        {% set min = namespace(value=0) %}
+        {% for entity in states.climate | selectattr('attributes.location', 'eq', 'house') | list %}
+          {% if entity.state == 'heat' %}
+            {% set diff = float(entity.attributes.current_temperature, 0) - float(entity.attributes.temperature, 0) %}
+            {% set min.value = diff if min.value > diff else min.value %}
+          {% endif %}
+        {% endfor %}
+        {{ min.value }}
+        
   - binary_sensor: 
-    - name: is_day_heating_time
-      state: "{{ 5 <= now().hour <= 21 }}"
-    - name: is_cheap_heating_period
-      state: "{{ 23 <= now().hour or now().hour < 7 }}"
+    - name: is_day_cheap_heating_period
+      state: "{{ is_state('binary_sensor.is_cheap_heating_period', 'on') and is_state('binary_sensor.is_day_heating_time', 'on') }}"
     - name: is_hot_floor_valves_open
       state: |
         {{ ([
@@ -251,157 +164,44 @@ template:
           states('switch.heater_valve_hot_floor_livingroom1'),
           states('switch.heater_valve_kitchen_hot_floor'),
           states('switch.heater_valve_hot_floor_entrance_tech_room')
-        ] | select('eq', 'off') | first) == 'off' }}
+        ] | select('eq', 'on') | first) == 'on' }}
     - name: hot_floor_pump_required
       state: |
-        {% if is_state('binary_sensor.is_hot_floor_valves_open', 'on') %}
-          {{
+        {{
+          is_state('binary_sensor.is_hot_floor_valves_open', 'on') and (
             float(states('sensor.fireplace_fan_power'), 0) > 0 or
             is_state('input_boolean.heating_enabled', 'on') or
             float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000
-          }}
-        {% else %}
-          off
-        {% endif %}
-
-  - sensor:
-    - name: master_bedroom_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('master_bedroom') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_master_bedroom 
-    - name: master_bathroom_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('master_bathroom') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_master_bathroom_hot_floor 
-    - name: cabinet_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('cabinet') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_cabinet 
-    - name: kid_small_bedroom_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('kid_small_bedroom') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_kid_small_bedroom 
-    - name: kid_big_bedroom_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('kid_big_bedroom') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_kid_big_bedroom 
-    - name: kid_bathroom_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('kid_bathroom') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_hall_and_small_bathroom 
-    - name: living_room_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('living_room') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: |
-          {{[
-            'switch.heater_valve_livingroom',
-            'switch.heater_valve_hot_floor_livingroom3',
-            'switch.heater_valve_hot_floor_livingroom2',
-            'switch.heater_valve_hot_floor_livingroom1',
-          ]}}
-    - name: kitchen_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('kitchen') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_kitchen_hot_floor 
-    - name: entrance_room_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% from 'heating_temp_diff.jinja' import heating_temp_diff %}
-        {{ heating_temp_diff('entrance_room') }}
-      attributes:
-        requires_heating: "{{ 'on' if float(this.state, 0) < 0 else 'off' }}"
-        heater_valve: switch.heater_valve_hot_floor_entrance_tech_room
-    - name: requires_heating
+          )
+        }}
+    - name: requires_heating_in_house
       state: |
         {{
-          is_state_attr('sensor.master_bedroom_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.master_bathroom_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.cabinet_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.kid_small_bedroom_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.kid_big_bedroom_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.kid_bathroom_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.living_room_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.kitchen_heating_temp_diff', 'requires_heating', 'on') or 
-          is_state_attr('sensor.entrance_room_heating_temp_diff', 'requires_heating', 'on') 
+          (states.climate 
+            | selectattr('attributes.location', 'eq', 'house')
+            | map(attribute='attributes.hvac_action')
+            | select('eq', 'heating')
+            | first) == 'heating'
         }}
-  
-  - binary_sensor:
-    - name: heating_valve_open_master_bedroom
+    - name: heating_only_hotfloor_in_house
       state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open %}
-        {{ heating_valve_open('master_bedroom', ['only_radiators']) }}
-    - name: heating_valve_open_master_bathroom
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
-        {{ heating_valve_open_hot_floor('master_bathroom', ['only_hot_floor']) }}
-    - name: heating_valve_open_cabinet
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open %}
-        {{ heating_valve_open('cabinet', ['only_radiators']) }}
-    - name: heating_valve_open_kid_small_bedroom
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open %}
-        {{ heating_valve_open('kid_small_bedroom', ['only_radiators']) }}
-    - name: heating_valve_open_kid_big_bedroom
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open %}
-        {{ heating_valve_open('kid_big_bedroom', ['only_radiators']) }}
-    - name: heating_valve_open_kid_bathroom
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
-        {{ heating_valve_open_hot_floor('kid_bathroom', ['only_hot_floor', 'only_hot_floor_eco']) }}
-    - name: heating_valve_open_living_room
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open %}
-        {{ heating_valve_open('living_room', ['only_radiators']) }}
-    - name: heating_valve_open_living_room_hot_floor
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
-        {{ heating_valve_open_hot_floor('living_room', ['only_hot_floor', 'only_hot_floor_eco']) }}
-    - name: heating_valve_open_kitchen
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
-        {{ heating_valve_open_hot_floor('kitchen', ['only_hot_floor', 'only_hot_floor_eco']) }}
-    - name: heating_valve_open_entrance_room
-      state: |
-        {% from 'heating_valve_open.jinja' import heating_valve_open_hot_floor %}
-        {{ heating_valve_open_hot_floor('entrance_room', ['only_hot_floor']) }}
-
+        {% set thermostats_heating = states.climate 
+          | selectattr('attributes.location', 'eq', 'house')
+          | selectattr('attributes.hvac_action', 'eq', 'heating')
+          | list
+        %}
+        {{
+          (thermostats_heating 
+            | selectattr('attributes.heater_type', 'eq', 'hotfloor') 
+            | list 
+            | count) == (thermostats_heating | count)
+        }}
+    
   - trigger:
     - platform: time_pattern
       minutes: "/1"
+    - platform: event
+      event_type: event_template_reloaded
     sensor:
     - name: main_heater_current_power_live
       icon: mdi:flash
@@ -412,6 +212,26 @@ template:
         {{ float(states('sensor.main_heater_current_power'), 0) }}
       attributes: 
         triggered_at: "{{ now() }}"
+  - trigger:
+    - platform: time
+      at: ["05:00:00", "21:00:00"]
+    - platform: event
+      event_type: my_event_template_reloaded
+    - platform: homeassistant
+      event: start
+    binary_sensor:
+    - name: is_day_heating_time
+      state: "{{ 5 <= now().hour <= 21 }}"
+  - trigger:
+    - platform: time
+      at: ["23:00:00", "07:00:00"]
+    - platform: event
+      event_type: my_event_template_reloaded
+    - platform: homeassistant
+      event: start
+    binary_sensor:
+    - name: is_cheap_heating_period
+      state: "{{ 23 <= now().hour or now().hour < 7 }}"
 sensor:
   - platform: integration
     source: sensor.main_heater_current_power_live
@@ -429,3 +249,113 @@ sensor:
       - sensor.master_wardrobe_climate_temperature
       - sensor.living_room_climate_temperature
       - sensor.entrance_room_climate_temperature
+
+climate:
+  - platform: generic_thermostat
+    name: master_bedroom
+    heater: input_boolean.thermostat_driven_heater_valve_master_bedroom
+    target_sensor: sensor.master_bedroom_climate_temperature
+    away_temp: 15
+    comfort_temp: 21
+    home_temp: 19
+    sleep_temp: 17
+    precision: 0.1
+  - platform: generic_thermostat
+    name: master_bathroom_hotfloor
+    heater: input_boolean.thermostat_driven_heater_valve_master_bathroom_hot_floor
+    target_sensor: sensor.master_bathroom_climate_temperature
+    away_temp: 15
+    comfort_temp: 21
+    home_temp: 19
+    sleep_temp: 18
+    precision: 0.1
+  - platform: generic_thermostat
+    name: cabinet
+    heater: input_boolean.thermostat_driven_heater_valve_cabinet
+    target_sensor: sensor.cabinet_climate_temperature
+    away_temp: 15
+    comfort_temp: 21
+    home_temp: 19
+    sleep_temp: 19
+    precision: 0.1
+  - platform: generic_thermostat
+    name: kid_small_bedroom
+    heater: input_boolean.thermostat_driven_heater_valve_kid_small_bedroom
+    target_sensor: sensor.cabinet_climate_temperature # TODO: need sensor
+    away_temp: 15
+    comfort_temp: 21
+    home_temp: 19
+    sleep_temp: 17
+    precision: 0.1
+  - platform: generic_thermostat
+    name: kid_big_bedroom
+    heater: input_boolean.thermostat_driven_heater_valve_kid_big_bedroom
+    target_sensor: sensor.kid_big_bedroom_climate_temperature
+    away_temp: 15
+    comfort_temp: 21
+    home_temp: 19
+    sleep_temp: 17
+    precision: 0.1
+  - platform: generic_thermostat
+    name: kid_bathroom_hotfloor
+    heater: input_boolean.thermostat_driven_heater_valve_hall_and_small_bathroom
+    target_sensor: sensor.kid_bathroom_climate_temperature
+    away_temp: 15
+    comfort_temp: 22
+    home_temp: 21
+    sleep_temp: 20
+    precision: 0.1
+  - platform: generic_thermostat
+    name: livingroom
+    heater: input_boolean.thermostat_driven_heater_valve_livingroom
+    target_sensor: sensor.living_room_climate_temperature
+    away_temp: 15
+    comfort_temp: 21
+    home_temp: 20
+    sleep_temp: 17
+    precision: 0.1
+  - platform: generic_thermostat
+    name: livingroom_hotfloor_table
+    heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom1
+    target_sensor: sensor.living_room_climate_temperature
+    away_temp: 7
+    comfort_temp: 22
+    home_temp: 21
+    sleep_temp: 21
+    precision: 0.1
+  - platform: generic_thermostat
+    name: livingroom_hotfloor_fireplace
+    heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom2
+    target_sensor: sensor.living_room_climate_temperature
+    away_temp: 7
+    comfort_temp: 22
+    home_temp: 21
+    sleep_temp: 21
+    precision: 0.1
+  - platform: generic_thermostat
+    name: livingroom_hotfloor_exit
+    heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom3
+    target_sensor: sensor.living_room_climate_temperature
+    away_temp: 10
+    comfort_temp: 22
+    home_temp: 21
+    sleep_temp: 21
+    precision: 0.1
+  - platform: generic_thermostat
+    name: kitchen_hotfloor
+    heater: input_boolean.thermostat_driven_heater_valve_kitchen_hot_floor
+    target_sensor: sensor.kitchen_climate_temperature
+    away_temp: 10
+    comfort_temp: 22
+    home_temp: 21
+    sleep_temp: 21
+    precision: 0.1
+  - platform: generic_thermostat
+    name: entrance_room_hotfloor
+    heater: input_boolean.thermostat_driven_heater_valve_hot_floor_entrance_tech_room
+    target_sensor: sensor.entrance_room_climate_temperature
+    away_temp: 10
+    comfort_temp: 22
+    home_temp: 20
+    sleep_temp: 16
+    precision: 0.1

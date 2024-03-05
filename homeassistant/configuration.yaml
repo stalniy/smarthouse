@@ -33,18 +33,18 @@ device_tracker:
 panel_iframe:
   zbhouse:
     title: House ZB
-    url: http://192.168.31.10:9123/
+    url: http://192.168.32.10:9123/
     icon: mdi:home-automation
     require_admin: true
 
   zbgarage:
     title: Garage ZB
-    url: http://192.168.31.10:9124/
+    url: http://192.168.32.10:9124/
     icon: mdi:home-automation
     require_admin: true
 
 ebusd:
-  host: 192.168.31.10
+  host: '192.168.32.10'
   circuit: bai
   name: Main heater
 
@@ -61,7 +61,7 @@ homeassistant:
     cleaning: !include _config/cleaning/main.yml
     ventilation: !include _config/ventilation/main.yml
     ventillation_kitchen_stove: !include _config/ventillation_kitchen_stove/main.yml
-    # livingroom_light_control: !include _config/livingroom_light_control/main.yml
+    watchtv: !include _config/watchtv/main.yml
     kitchen_light_control: !include _config/kitchen_light/main.yml
     security: !include _config/security/main.yml
     doghouse: !include _config/doghouse/main.yml

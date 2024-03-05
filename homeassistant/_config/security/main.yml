@@ -5,12 +5,11 @@ automation:
       - platform: state
         entity_id: 
           - binary_sensor.kitchen_motion
-          - binary_sensor.livingroom_occupancy
         to: 'on'
     condition:
       - condition: template
         value_template: "{{ states('group.residents') == 'not_home' }}"
     action:
-      - service: notify.telegram_serhii
-        data:
-          message: Рух в будинку - "{{ trigger.to_state.state }}" !!!
+      - event: important_home_event
+        event_data:
+          message: Рух в будинку, коли нікого нема !!!

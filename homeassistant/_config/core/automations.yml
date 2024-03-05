@@ -67,8 +67,8 @@
       update_type:
         - added
   action:
-    - service: notify.telegram_serhii
-      data:
+    - event: important_home_event
+      event_data:
         title: "{{ trigger.notification.title }}"
         message: "{{ trigger.notification.message }}"
 
@@ -144,16 +144,28 @@
     - condition: template
       value_template: "{{ is_state('group.residents', 'not_home') }}"
   action:
-    - service: notify.telegram_serhii
-      data:
+    - event: important_home_event
+      event_data:
         message: "Повернувся додому?"
 
 - id: solcast_forecast_sync
   alias: Solcast_update
   description: New API call Solcast
   trigger:
-  - platform: time_pattern
-    hours: /2
+    - platform: sun
+      event: sunrise
+    - platform: sun
+      event: sunset
+    - platform: time
+      at: 
+        - '10:00'
+        - '11:00'
+        - '12:00'
+        - '14:00'
+        - '15:00'
+        - '16:00'
+        - '17:00'
+        - '18:00'
   condition:
   - condition: sun
     before: sunset
@@ -190,3 +202,113 @@
         - service: counter.reset
           target:
             entity_id: "{{ counter_entity_id }}"
+
+- alias: Template reloaded
+  mode: single
+  trigger:
+    - platform: event
+      event_type: event_template_reloaded
+  action:
+    - event: my_event_template_reloaded
+      event_data: {}
+
+- id: family_wake_up
+  trigger:
+    - platform: time
+      at: ["07:00:00", "16:30:00"]
+  action:
+    - service: input_select.select_option
+      data:
+        option: awaken
+      target:
+        entity_id: input_select.family_state
+
+- id: leave_home_on_events_sequence
+  mode: single
+  trigger:
+    platform: state
+    entity_id: binary_sensor.is_main_door_unlocked
+    from: 'on'
+    to: 'off'
+  condition:
+    - condition: template
+      value_template: "{{ is_state('group.residents', 'home') }}"
+  action:
+    - wait_for_trigger:
+        platform: event
+        event_type: yard_crossed_line
+        event_data: 
+          name: house_near_stairs
+          direction: LeftToRight
+      timeout: "00:05"
+      continue_on_timeout: false
+    - wait_template: "{{ is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') }}"
+      timeout: "00:00:30"
+      continue_on_timeout: false
+    - wait_for_trigger:
+        platform: event
+        event_type: yard_crossed_line
+        event_data:
+          name: garage_home_direction
+          direction: LeftToRight
+          object_type: Human
+      timeout: "00:05:00"
+      continue_on_timeout: false
+    - wait_for_trigger:
+        platform: event
+        event_type: yard_crossed_line
+        event_data:
+          name: yard_gates
+          direction: LeftToRight
+          object_type: Human
+      timeout: "00:05:00"
+      continue_on_timeout: false
+    - wait_for_trigger:
+        platform: event
+        event_type: yard_crossed_line
+        event_data:
+          name: yard_gates
+          direction: LeftToRight
+          object_type: Vehicle
+      timeout: "00:10:00"
+      continue_on_timeout: false
+    - service: device_tracker.see
+      data:
+        dev_id: serhii_phone_shortcut
+        location_name: "not_home"
+
+- id: notify_about_tracked_events
+  alias: Notify in messenger about tracked events
+  mode: parallel
+  max: 1000
+  trigger:
+    platform: event
+    event_type: important_home_event
+  action:
+    - service: notify.telegram_serhii
+      data: >-
+        {% set event = trigger.event.data %}
+        {% if 'attachments' in event %}
+          {{{
+            'message': '',
+            'data': {
+              'photo': {
+                'file': event['attachments'][0],
+                'caption': event['message'] | replace('_', '\_')
+              }
+            }
+          }}}
+        {% else %}
+          {{{
+            'message': event['message'] | replace('_', '\_')
+          }}}
+        {% endif %}
+
+- id: translate_telegram_command_to_external_command
+  trigger:
+    - platform: event
+      event_type: telegram_command
+  action:
+    - event: external_command
+      event_data:
+        command: "{{ trigger.event.data.command }}"

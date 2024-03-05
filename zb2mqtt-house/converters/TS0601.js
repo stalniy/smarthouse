@@ -4,6 +4,11 @@ const reporting = require('zigbee-herdsman-converters/lib/reporting');
 const tuya = require('zigbee-herdsman-converters/lib/tuya');
 const e = exposes.presets;
 
+const valueConverter = tuya.valueConverterBasic.lookup((options) => ({
+    'ON': !options.invert_switch, 
+    'OFF': !!options.invert_switch,
+}));
+
 const definition = {
     fingerprint: [
         {
@@ -59,24 +64,26 @@ const definition = {
             l12: 1,
         }
     },
+    options: [
+        new exposes.Binary(`invert_switch`, exposes.access.SET, true, false).withDescription(`Inverts the switch state, false: switch=on, true: switch=off.`)
+    ],
     meta: {
         multiEndpoint: true,
         tuyaDatapoints: [
-            [1, 'state_l1', tuya.valueConverter.onOff],
-            [2, 'state_l2', tuya.valueConverter.onOff],
-            [3, 'state_l3', tuya.valueConverter.onOff],
-            [4, 'state_l4', tuya.valueConverter.onOff],
-            [5, 'state_l5', tuya.valueConverter.onOff],
-            [6, 'state_l6', tuya.valueConverter.onOff],
-            [101, 'state_l7', tuya.valueConverter.onOff],
-            [102, 'state_l8', tuya.valueConverter.onOff],
-            [103, 'state_l9', tuya.valueConverter.onOff],
-            [104, 'state_l10', tuya.valueConverter.onOff],
-            [105, 'state_l11', tuya.valueConverter.onOff],
-            [106, 'state_l12', tuya.valueConverter.onOff],
+            [1, 'state_l1', valueConverter],
+            [2, 'state_l2', valueConverter],
+            [3, 'state_l3', valueConverter],
+            [4, 'state_l4', valueConverter],
+            [5, 'state_l5', valueConverter],
+            [6, 'state_l6', valueConverter],
+            [101, 'state_l7', valueConverter],
+            [102, 'state_l8', valueConverter],
+            [103, 'state_l9', valueConverter],
+            [104, 'state_l10', valueConverter],
+            [105, 'state_l11', valueConverter],
+            [106, 'state_l12', valueConverter],
         ],
     },
 };
-
 
 module.exports = definition;

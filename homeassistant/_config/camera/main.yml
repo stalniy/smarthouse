@@ -1,53 +1,67 @@
 automation:
-  - id: notify_about_crossed_regions_house_entrance
+  - id: notify_about_ivs
     alias: Notify about IVS
     mode: parallel
-    max: 20
+    max: 50
     trigger:
-      - platform: event
-        event_type: dahua_event_received
-        event_data:
-          action: Start
-          Code: CrossLineDetection
-        variables:
-          photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
-      - platform: event
-        event_type: dahua_event_received
-        event_data:
-          action: Start
-          Code: CrossRegionDetection
-        variables:
-          photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+      platform: event
+      event_type: dahua_event_received
+      event_data:
+        action: Start
+      variables:
+        photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+        base_entity_id: >-
+          {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}
+    condition:
+      - condition: template
+        value_template: |
+          {{
+            trigger.event.data.Code in ['CrossLineDetection', 'CrossRegionDetection'] and
+            ( 
+              is_state('group.residents', 'not_home') or 
+              is_state('binary_sensor.' + base_entity_id + '_smart_motion_human', 'on') or
+              is_state('binary_sensor.' + base_entity_id + '_smart_motion_vehicle', 'on')
+            )
+          }} 
     action:
       - service: camera.snapshot
         target:
-          entity_id: >-
-            {% set entity_name_to_id = {
-              'Camera house entrance': 'camera.camera_house_entrance_sub',
-              'Camera house terace': 'camera.camera_house_terace_sub',
-              'Camera house east': 'camera.camera_house_east_sub',
-              'Camera garage gates': 'camera.camera_garage_gates_sub',
-              'Camera garage back': 'camera.camera_garage_back_sub',
-              'Camera between house and garage': 'camera.camera_between_house_and_garage_sub',
-            } %}
-            {{ entity_name_to_id[trigger.event.data.DeviceName] }}
+          entity_id: "camera.{{ base_entity_id }}_sub"
         data:
           filename: "{{ photo_path }}"
-      # - service: notify.telegram_serhii
-      #   data:
-      #     title: "Рух у дворі"
-      #     message: |
-      #       Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}
-      - service: notify.telegram_serhii
-        data:
-          message: ""
-          data:
-            photo: 
-              file: "{{ photo_path }}"
-              caption: | 
-                Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}
+      - event: important_home_event
+        event_data:
+          message: "Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}"
+          attachments:
+            - "{{ photo_path }}"
 
-  - id: guests_via_main_entrance
+  - id: notify_about_other_camera_events
+    alias: Notify about other camera events
+    mode: parallel
+    max: 100
+    trigger:
+      platform: event
+      event_type: dahua_event_received
+    condition:
+      - condition: template
+        value_template: | 
+          {{ 
+            trigger.event.data.Code not in [
+              'CrossLineDetection', 
+              'CrossRegionDetection',
+              'VideoMotion',
+              'SmartMotionHuman',
+              'SmartMotionVehicle'
+            ] 
+          }}
+    action:
+      - event: important_home_event
+        event_data:
+          message: "Подія з камери: {{ trigger.event.data.Code }}"
+
+  - id: proxy_dahua_cross_line_events
+    mode: parallel
+    max: 100
     trigger:
       platform: event
       event_type: dahua_event_received
@@ -55,22 +69,28 @@ automation:
         action: Start
         Code: CrossLineDetection
       variables:
-        photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg"
-    condition:
-      - condition: template
-        value_template: |
-          {% set event = trigger.event.data.data %}
-          {{ 
-            event.Direction == 'LeftToRight' and 
-            event.Name == 'yard_gates' and
-            event.Object.ObjectType == 'Human'
-          }}
-    action:   
-      - service: notify.telegram_serhii
-        data:
-          message: ""
-          data:
-            photo: 
-              file: "{{ photo_path }}"
-              caption: | 
-                Прийшли гості
+        event: "{{ trigger.event.data.data }}"
+    action:
+      - event: yard_crossed_line
+        event_data: 
+          name: "{{ event.Name }}"
+          direction: "{{ event['Direction'] }}"
+          object_type: "{{ event['Object']['ObjectType'] }}"
+
+  - id: proxy_dahua_cross_region_events
+    mode: parallel
+    max: 100
+    trigger:
+      platform: event
+      event_type: dahua_event_received
+      event_data:
+        action: Start
+        Code: CrossRegionDetection
+      variables:
+        event: "{{ trigger.event.data.data }}"
+    action:
+      - event: yard_crossed_region
+        event_data: 
+          name: "{{ event.Name }}"
+          direction: "{{ event['Direction'] }}"
+          object_type: "{{ event['Object']['ObjectType'] }}"

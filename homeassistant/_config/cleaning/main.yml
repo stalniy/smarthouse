@@ -71,6 +71,39 @@ script:
           number:
             min: 1
             max: 10
+      fan_speed:
+        name: Fan speed
+        default: custom
+        selector:
+          select:
+            options:
+              - 'off'
+              - quiet
+              - balanced
+              - turbo
+              - max
+              - custom
+      mop_mode:
+        name: Mop mode
+        default: custom
+        selector: 
+          select: 
+            options:
+              - standard
+              - deep
+              - deep_plus
+              - custom
+      mop_intensity:
+        name: Mop intencity
+        default: custom
+        selector:
+          select: 
+            options:
+              - 'off'
+              - mild
+              - moderate
+              - intense
+              - custom
     variables:
       rooms_ids: |
         {% 
@@ -103,6 +136,7 @@ script:
       start_on_vacuum_state:
         - 'docked'
         - 'returning'
+      current_fan_speed: "{{ fan_speed if fan_speed is defined else 'custom' }}"
     sequence:
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
@@ -116,6 +150,21 @@ script:
             - condition: template
               value_template: "{{ rooms_ids | count != 0 }}"
             then: 
+            - service: vacuum.set_fan_speed
+              target:
+                entity_id: vacuum.bruce
+              data:
+                fan_speed: "{{ current_fan_speed }}"
+            - service: select.select_option
+              target:
+                entity_id: select.roborock_s7_mop_mode
+              data: 
+                option: "{{ mop_mode if mop_mode is defined else 'custom' }}"
+            - service: select.select_option
+              target:
+                entity_id: select.roborock_s7_mop_intensity
+              data: 
+                option: "{{ mop_intensity if mop_intensity is defined else 'custom' }}"
             - service: vacuum.send_command
               data:
                 command: app_segment_clean
@@ -126,18 +175,18 @@ script:
                 entity_id: vacuum.bruce
             - alias: Очікуємо поки робот почне прибирання
               wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
-              timeout: "00:00:30"
-            - service: notify.telegram_serhii
-              data:
+              timeout: "00:05:00"
+            - event: important_home_event
+              event_data:
                 message: |
                   Брюс почав прибирання:
-                  {{ rooms | join("\n") | replace('_', '\_') }}
+                  {{ rooms | join("\n") }}
             else:
-              - service: notify.telegram_serhii
-                data:
+              - event: important_home_event
+                event_data:
                   message: |
                     Не виявлено кімнат для прибирання, ігнорую. Кімнати для прибирання:
-                    {{ rooms | join("\n") | replace('_', '\_') }}
+                    {{ rooms | join("\n") }}
           - if: 
               - condition: template
                 value_template: |
@@ -149,19 +198,20 @@ script:
               - service: script.vacuum_clean_zone
                 data:
                   zones: [livingroom_entertainment]
+                  fan_speed: "{{ current_fan_speed }}"
         else:
-          - service: notify.telegram_serhii
-            data:
+          - event: important_home_event
+            event_data:
               message: |
                 Заплановане прибирання проігнороване, бо стан Брюса не змінився на {{ start_on_vacuum_state }}:
-                {{ rooms | join("\n") | replace('_', '\_') }}
+                {{ rooms | join("\n") }}
                 
-                Почати прибирання: /clean\_house
+                Почати прибирання: /clean_house
 
   vacuum_clean_zone:
     alias: Vacuum clean zones
     icon: mdi:robot-vacuum
-    mode: single
+    mode: queued
     fields:
       zones:
         name: Zone names to clean
@@ -173,6 +223,18 @@ script:
               - terrace_exit
               - fireplace
               - livingroom_entertainment
+      fan_speed:
+        name: Fan speed
+        default: balanced
+        selector:
+          select:
+            options:
+              - 'off'
+              - quiet
+              - balanced
+              - turbo
+              - max
+              - custom
     variables:  
       zones_coords: |
         {% 
@@ -199,7 +261,7 @@ script:
         target:
           entity_id: vacuum.bruce
         data:
-          fan_speed: max
+          fan_speed: "{{ fan_speed if fan_speed is defined else 'balanced' }}"
       - service: vacuum.send_command
         data:
           command: app_zoned_clean
@@ -208,11 +270,11 @@ script:
           entity_id: vacuum.bruce
       - alias: Очікуємо поки робот почне прибирання
         wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
-        timeout: "00:00:30"
-      - service: notify.telegram_serhii
-        data:
+        timeout: "00:05:00"
+      - event: important_home_event
+        event_data:
           message: |
             Брюс почав прибирання зон:
-            {{ zones | join("\n") | replace('_', '\_') }}
+            {{ zones | join("\n") }}
       
 automation: !include ./automations.yml

@@ -1,0 +1,71 @@
+template:
+  - binary_sensor:
+    - name: livingroom_tv_consumes_power
+      state: "{{ float(states('sensor.livingroom_tv_power'), 0) > 0 }}"
+
+automation:
+  - id: toggle_curtains_for_watch_mode_in_livingroom
+    alias: Toggle curtains for watch TV mode in livingroom
+    trigger:
+      - platform: state
+        entity_id: sensor.tv_button_action
+        to: single
+        variables:
+          curtain_mode: tv_watching_light_mode
+      - platform: state
+        entity_id: sensor.tv_button_action
+        to: double
+        variables:
+          curtain_mode: tv_watching_mode
+    action: 
+      - service: input_select.select_option
+        data:
+          option: "{{ curtain_mode }}"
+        target:
+          entity_id: input_select.curtain_outside_mode
+
+  - id: toggle_watchtv_mode
+    alias: Enable watch TV mode in livingroom
+    trigger:
+      - platform: state
+        entity_id: sensor.tv_button_action
+        to: single
+        variables:
+          curtain_mode: tv_watching_light_mode
+    action: 
+      - if:
+          - condition: template
+            value_template: "{{ is_state('switch.livingroom_tv', 'off') }}"
+        then:
+          - service: switch.turn_on
+            target:
+              entity_id: switch.livingroom_tv
+          - service: light.turn_on
+            target:
+              entity_id: light.livingroom_tv_light
+        else: 
+          - service: remote.turn_off
+            target:
+              entity_id: remote.miprojl1
+          - delay: '00:00:01'
+          - service: remote.turn_off
+            target:
+              entity_id: remote.miprojl1
+
+  - id: power_off_tv_on_no_power
+    trigger:
+      platform: state
+      entity_id: binary_sensor.livingroom_tv_consumes_power
+      to: 'off'
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.livingroom_tv
+      - service: input_select.select_option
+        data:
+          option: "open"
+        target:
+          entity_id: input_select.curtain_outside_mode
+      - service: light.turn_off
+        target:
+          entity_id: light.livingroom_tv_light

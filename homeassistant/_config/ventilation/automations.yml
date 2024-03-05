@@ -91,6 +91,7 @@
   action:
     - service: persistent_notification.create
       data:
+        notification_id: high_humidity_in_house
         message: |
           Провітріть будинок, зависока вологість:
           {% set sensors = [
@@ -104,3 +105,13 @@
             { "value": float(states('sensor.cabinet_climate_humidity'), 0), "name": "Кабінет" }
           ]%}
           {{ sensors | selectattr('value', 'gt', 70) | map(attribute="name") | join(',\n') }}
+
+- id: turn_off_ventilation_when_sleeping
+  alias: Turn off ventilation when go to sleep
+  trigger:
+    - platform: state
+      entity_id: input_select.family_state
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: "switch.bathroom_fan"
