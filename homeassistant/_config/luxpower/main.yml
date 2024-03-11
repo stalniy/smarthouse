@@ -1,0 +1,29 @@
+automation: !include ./automations.yml
+
+homeassistant:  
+  customize:
+    number.lux_ac_charge_mode:
+      mapping: >-
+        {
+          "0": "Disable",
+          "2": "Time",
+          "4": "Battery Voltage",
+          "6": "Battery SOC"
+        }
+
+template:
+  select:
+    - name: lux_ac_charge_type
+      state: "{{ (state_attr('number.lux_ac_charge_mode', 'mapping') | from_json).get(int(states('number.lux_ac_charge_mode')) | string) }}"
+      options: "{{ (state_attr('number.lux_ac_charge_mode', 'mapping') | from_json).values() | list }}"
+      select_option:
+      - service: number.set_value
+        target:
+          entity_id: number.lux_ac_charge_mode
+        data:
+          value: |
+            {{ (state_attr('number.lux_ac_charge_mode', 'mapping') | from_json).items() 
+                | selectattr('1', 'eq', option) 
+                | first 
+                | first 
+            }}

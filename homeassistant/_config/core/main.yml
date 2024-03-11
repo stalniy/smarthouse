@@ -28,11 +28,6 @@ input_select:
       - close_panoramic
       - close_everything
       - open
-  family_state:
-    name: Стан сім'ї
-    options:
-      - awaken
-      - sleeping
 
 counter:
   kid_bathroom_switch:

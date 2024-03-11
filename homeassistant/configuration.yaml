@@ -27,6 +27,12 @@ notify:
   - platform: telegram
     name: telegram_serhii
     chat_id: !secret telegram_bot_serhii_chat
+  - platform: signal_messenger
+    name: signal_serhii
+    url: "http://127.0.0.1:9135"
+    number: !secret signal_phone_number
+    recipients: 
+      - !secret signal_recipient
 
 device_tracker: 
 
@@ -55,6 +61,7 @@ homeassistant:
 
   packages:
     core: !include _config/core/main.yml
+    luxpower: !include _config/luxpower/main.yml
     heating: !include _config/heating/main.yml
     garage_gates: !include _config/garage_gates/main.yml
     electricity: !include _config/electricity/main.yml
@@ -90,4 +97,7 @@ recorder:
   # include:
   #   entities:
 
-custom_jinja2_filters:
+websocket:
+  - url: !secret signal_ws_url
+    event_type: !secret signal_message_to_event_type
+    event_data: !secret signal_message_to_event_data

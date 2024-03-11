@@ -22,6 +22,7 @@
           - "{{ bathroom_id }}"
         repeats: 2
         fan_speed: max
+        mop_intensity: 'off'
     - if: 
         - condition: template
           value_template: |
@@ -123,6 +124,10 @@
                   is_state('binary_sensor.roborock_s7_water_box_attached', 'on') 
                 }}
           then:
+            - alias: Очікуємо поки робот зарядиться
+              wait_template: |
+                {{ states('vacuum.bruce') == 'docked' and float(states('sensor.roborock_s7_battery'), 0) >= 60 }}
+              timeout: "01:30:00"
             - service: script.vacuum_clean
               alias: Мити підлогу
               data:
@@ -147,18 +152,18 @@
           alias: Сповіщення про прибирання
   mode: single
 
-- id: set_roborock_fan_speed_to_quiet_on_returning
-  trigger:
-    platform: state
-    entity_id: vacuum.bruce
-    to: returning
-    for: 00:00:05
-  condition:
-    - condition: template
-      value_template: "{{ states('vacuum.bruce') == 'returning' }}"
-  action:
-    - service: vacuum.set_fan_speed
-      target:
-        entity_id: vacuum.bruce
-      data:
-        fan_speed: quiet
+# - id: set_roborock_fan_speed_to_quiet_on_returning
+#   trigger:
+#     platform: state
+#     entity_id: vacuum.bruce
+#     to: returning
+#     for: 00:00:05
+#   condition:
+#     - condition: template
+#       value_template: "{{ states('vacuum.bruce') == 'returning' }}"
+#   action:
+#     - service: vacuum.set_fan_speed
+#       target:
+#         entity_id: vacuum.bruce
+#       data:
+#         fan_speed: quiet

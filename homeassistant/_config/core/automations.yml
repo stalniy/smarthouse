@@ -217,11 +217,7 @@
     - platform: time
       at: ["07:00:00", "16:30:00"]
   action:
-    - service: input_select.select_option
-      data:
-        option: awaken
-      target:
-        entity_id: input_select.family_state
+    - event: sleeping_time_end
 
 - id: leave_home_on_events_sequence
   mode: single
@@ -285,30 +281,41 @@
     platform: event
     event_type: important_home_event
   action:
-    - service: notify.telegram_serhii
-      data: >-
-        {% set event = trigger.event.data %}
-        {% if 'attachments' in event %}
-          {{{
-            'message': '',
-            'data': {
-              'photo': {
-                'file': event['attachments'][0],
-                'caption': event['message'] | replace('_', '\_')
-              }
-            }
-          }}}
-        {% else %}
-          {{{
-            'message': event['message'] | replace('_', '\_')
-          }}}
-        {% endif %}
+    - service: notify.signal_serhii
+      data: 
+        message: "{{ trigger.event.data.message }}"
+        data:
+          attachments: "{{ trigger.event.data.attachments if 'attachments' in trigger.event.data else [] }}"
 
-- id: translate_telegram_command_to_external_command
+    # - service: notify.telegram_serhii
+    #   data: >-
+    #     {% set event = trigger.event.data %}
+    #     {% if 'attachments' in event %}
+    #       {{{
+    #         'message': '',
+    #         'data': {
+    #           'photo': {
+    #             'file': event['attachments'][0],
+    #             'caption': event['message'] | replace('_', '\_')
+    #           }
+    #         }
+    #       }}}
+    #     {% else %}
+    #       {{{
+    #         'message': event['message'] | replace('_', '\_')
+    #       }}}
+    #     {% endif %}
+
+- id: translate_messenger_command_to_external_command
+  alias: Translate messenger message to external command
   trigger:
-    - platform: event
-      event_type: telegram_command
+    platform: event
+    # event_type: telegram_command
+    event_type: signal_message_received
+  condition:
+    - condition: template
+      value_template: "{{ trigger.event.data.message[0] == '/' and trigger.event.data.from == 'Serhii' }}"
   action:
     - event: external_command
       event_data:
-        command: "{{ trigger.event.data.command }}"
+        command: "{{ trigger.event.data.message }}"

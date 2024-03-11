@@ -153,7 +153,7 @@ template:
         
   - binary_sensor: 
     - name: is_day_cheap_heating_period
-      state: "{{ is_state('binary_sensor.is_cheap_heating_period', 'on') and is_state('binary_sensor.is_day_heating_time', 'on') }}"
+      state: "{{ is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and is_state('binary_sensor.is_day_heating_time', 'on') }}"
     - name: is_hot_floor_valves_open
       state: |
         {{ ([
@@ -164,7 +164,7 @@ template:
           states('switch.heater_valve_hot_floor_livingroom1'),
           states('switch.heater_valve_kitchen_hot_floor'),
           states('switch.heater_valve_hot_floor_entrance_tech_room')
-        ] | select('eq', 'on') | first) == 'on' }}
+        ] | select('eq', 'off') | first) == 'off' }}
     - name: hot_floor_pump_required
       state: |
         {{
@@ -213,25 +213,112 @@ template:
       attributes: 
         triggered_at: "{{ now() }}"
   - trigger:
-    - platform: time
-      at: ["05:00:00", "21:00:00"]
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
     - platform: event
       event_type: my_event_template_reloaded
     - platform: homeassistant
       event: start
     binary_sensor:
     - name: is_day_heating_time
-      state: "{{ 5 <= now().hour <= 21 }}"
+      state: "{{ 5 <= now().hour < 21 }}"
   - trigger:
-    - platform: time
-      at: ["23:00:00", "07:00:00"]
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+    binary_sensor:
+    - name: boiler_requires_reheating
+      state: "{{ now().strftime('%a') == 'Sat' }}"
+  - trigger:
     - platform: event
       event_type: my_event_template_reloaded
     - platform: homeassistant
       event: start
+    - platform: state
+      entity_id: 
+        - sensor.solcast_pv_forecast_forecast_this_hour
+        - binary_sensor.is_cheap_grid_energy_period
+        - binary_sensor.inverter_connected_to_grid
+        - sensor.lux_grid_flow_live
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
     binary_sensor:
-    - name: is_cheap_heating_period
-      state: "{{ 23 <= now().hour or now().hour < 7 }}"
+    - name: boiler_heating_required
+      state: >-
+        {{
+          is_state('binary_sensor.boiler_requires_reheating', 'on') or
+          float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) >= 1000 and
+          5 <= now().hour <= 19 or
+          now().hour >= 4 and is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
+          (float(states('sensor.lux_grid_flow_live'), 0) > 0 or is_state('binary_sensor.inverter_connected_to_grid', 'on'))
+        }}
+  - trigger:
+    - platform: event
+      event_type: my_event_template_reloaded
+    - platform: homeassistant
+      event: start
+    - platform: state
+      entity_id: 
+        - light.kid_bathroom
+        - light.master_bathroom
+        - binary_sensor.kitchen_table_presence
+      to:
+        - 'on'
+        - 'off'
+    - platform: time
+      at: 
+        - "06:00:00"
+        - "07:00:00"
+        - input_datetime.back_home_at
+    - platform: event
+      event_type: timer.finished
+      event_data:
+        entity_id: timer.hot_water_turn_off_after_time_based_on
+    action:
+      - if: 
+        - condition: template
+          value_template: "{{ trigger.platform == 'time' }}"
+        then:
+          - service: timer.start
+            target:
+              entity_id: timer.hot_water_turn_off_after_time_based_on
+    binary_sensor:
+    - name: hot_water_pump_required
+      state: |
+        {{
+          states.light.kid_bathroom.state == 'on' or
+          states.light.master_bathroom.state == 'on' or
+          states.binary_sensor.kitchen_table_presence.state == 'on' or
+          trigger.platform == 'time'
+        }}
+  - trigger:
+      - platform: state
+        entity_id: 
+          - binary_sensor.is_day_cheap_heating_period
+          - binary_sensor.is_day_heating_time
+      - platform: state
+        entity_id: group.residents
+        for: "00:05:00"
+      - platform: event
+        event_type: sleeping_time_start
+      - platform: event
+        event_type: sleeping_time_end
+    sensor:
+    - name: heating_preset_mode
+      state: |
+        {% if 
+          is_state('binary_sensor.is_day_heating_time', 'off') or 
+          is_state('group.residents', 'not_home') or 
+          trigger.platform == 'event' and trigger.event.event_type == 'sleeping_time_start'
+        %}
+          sleep        
+        {% elif is_state('binary_sensor.is_day_cheap_heating_period', 'on') %}
+          comfort
+        {% else %}
+          home
+        {% endif %}
 sensor:
   - platform: integration
     source: sensor.main_heater_current_power_live
@@ -256,7 +343,7 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_master_bedroom
     target_sensor: sensor.master_bedroom_climate_temperature
     away_temp: 15
-    comfort_temp: 21
+    comfort_temp: 20
     home_temp: 19
     sleep_temp: 17
     precision: 0.1
@@ -283,7 +370,7 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_kid_small_bedroom
     target_sensor: sensor.cabinet_climate_temperature # TODO: need sensor
     away_temp: 15
-    comfort_temp: 21
+    comfort_temp: 20
     home_temp: 19
     sleep_temp: 17
     precision: 0.1
@@ -292,7 +379,7 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_kid_big_bedroom
     target_sensor: sensor.kid_big_bedroom_climate_temperature
     away_temp: 15
-    comfort_temp: 21
+    comfort_temp: 20
     home_temp: 19
     sleep_temp: 17
     precision: 0.1
@@ -359,3 +446,7 @@ climate:
     home_temp: 20
     sleep_temp: 16
     precision: 0.1
+
+timer:
+  hot_water_turn_off_after_time_based_on:
+    duration: "00:10:00"

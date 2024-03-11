@@ -142,6 +142,7 @@
     - platform: state
       entity_id: binary_sensor.hot_floor_pump_required
       to: 'on'
+      for: "00:03:00"
       variables:
         pump_state: 'on'
     - platform: state
@@ -243,80 +244,35 @@
 - id: control_hwc
   alias: Керування бойлером
   trigger:
-    - platform: template
-      value_template: |
-        {{ 
-          states('sensor.solcast_pv_forecast_forecast_this_hour') | float(0) >= 1500 and
-          5 <= now().hour <= 19
-        }}
-      variables:
-        heater_state: "on"
-    - platform: template
-      value_template: |
-        {{ 
-          states('sensor.solcast_pv_forecast_forecast_this_hour') | float(0) < 1500 and
-          5 <= now().hour <= 19
-        }}
-      variables:
-        heater_state: "off"
-    - platform: time
-      at: "04:00:00"
-      variables:
-        heater_state: "{{ states('binary_sensor.inverter_connected_to_grid') }}"
-    - platform: time
-      at: "07:00:00"
-      variables:
-        heater_state: "off"
+    platform: state
+    entity_id: binary_sensor.boiler_heating_required
+    to: 
+      - 'on'
+      - 'off'
   action:
     - if:
         - condition: template
-          value_template: "{{ now().strftime('%a') == 'Sat' and trigger.platform == 'time' }}"
+          value_template: "{{ is_state('binary_sensor.boiler_requires_reheating', 'on') }}"
       then:
-        - service_template: "input_boolean.turn_{{ heater_state }}"
+        - service_template: "input_boolean.turn_{{ trigger.to_state.state }}"
           target:
             entity_id: input_boolean.hwc_enabled
       else:
         - alias: Ввімкнути/Вимкнути бойлер
-          service_template: switch.turn_{{ heater_state }}
+          service_template: "switch.turn_{{ trigger.to_state.state }}"
           entity_id: switch.water_heater_2k
   mode: restart
-
-- id: disable_boiler_heating_if_no_electricity
-  trigger:  
-    - platform: state
-      entity_id: binary_sensor.inverter_connected_to_grid
-      from: 'on'
-      to: 'off'
-  condition:
-    - condition: template
-      value_template: "{{ is_state('switch.water_heater_2k', 'on') and 1 <= now().hour <= 7 }}"
-  action:
-    - service: switch.turn_off
-      entity_id: switch.water_heater_2k
   
 - id: toggle_thermostats_mode
   alias: Toggle thermostats mode
   trigger:
     - platform: state
-      entity_id: input_select.family_state
-      variables:
-        may_set: "{{ now().hour > 18 }}"
-        preset_mode: "sleep"
-    - platform: state
-      entity_id: binary_sensor.is_day_cheap_heating_period
-      variables:
-        preset_mode: "{{ 'comfort' if trigger.to_state.state == 'on' else 'home' }}"
-    - platform: state
-      entity_id: group.residents
-      variables: 
-        preset_mode: "{{ 'sleep' if trigger.to_state.state == 'not_home' else 'home' }}"
-  condition:
-    - condition: template
-      value_template: "{{ may_set is not defined or may_set }}"
+      entity_id: sensor.heating_preset_mode
+      for: "00:00:03"
   action:
     - service: climate.set_preset_mode
       data:
-        preset_mode: "{{ preset_mode }}"
+        preset_mode: "{{ trigger.to_state.state }}"
       target:
         entity_id: | 
           {{ 
@@ -325,11 +281,31 @@
               | map(attribute="entity_id") 
               | list 
           }}
+    - if: 
+      - condition: template
+        value_template: |
+          {{ 
+            is_state('sensor.heating_preset_mode', 'sleep') and 
+            is_state('binary_sensor.is_cheap_grid_energy_period', 'off') 
+          }}
+      then:
+      - service: climate.set_hvac_mode
+        data:
+          hvac_mode: "off"
+        target:
+          entity_id: >-
+            {{ states.climate
+                | selectattr('attributes.location', 'eq', 'house')
+                | selectattr('state', 'eq', 'heat')
+                | map(attribute='entity_id')
+                | list
+            }}
+        
 
 - id: configure_heater_heating_mode_and_preset
   trigger:
     - platform: state
-      entity_id: binary_sensor.is_cheap_heating_period
+      entity_id: binary_sensor.is_cheap_grid_energy_period
   action:
     - if:
       - condition: "template"
@@ -351,3 +327,21 @@
       then:
       - service: input_boolean.turn_off
         entity_id: input_boolean.hwc_enabled
+
+- id: hot_water_pump_management
+  alias: Керування насосу ГВП
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.hot_water_pump_required
+      to: 'on'
+    - platform: state
+      entity_id: binary_sensor.hot_water_pump_required
+      to: 'off'
+      for: "00:01:00"
+  condition:
+    - condition: template
+      value_template: "{{ states.group.residents.state == 'home' }}"  
+  action:
+    - service_template: "switch.turn_{{ trigger.to_state.state }}"
+      target:
+        entity_id: switch.hot_water_pump
