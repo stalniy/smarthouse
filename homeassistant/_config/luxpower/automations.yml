@@ -1,0 +1,59 @@
+- id: battery_charging_type_toggler
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.is_cheap_grid_energy_period
+      to: 
+        - "on"
+        - "off"
+      variables:
+        power_forecast_tomorrow: "{{ float(states('sensor.solcast_pv_forecast_forecast_tomorrow'), 0) }}"
+  action:
+    - if:
+      - condition: template
+        value_template: "{{ power_forecast_tomorrow <= 15 }}"
+      then:
+      - service: input_select.select_option
+        data: 
+          option: "{{ 'Battery SOC' if trigger.to_state.state == 'on' else 'Time' }}"
+        target:
+          entity_id: select.lux_ac_charge_type
+      - service: number.set_value
+        data:
+          value: |
+            {% if power_forecast_tomorrow <= 5 %}
+              100
+            {% elif power_forecast_tomorrow <= 10 %}
+              60
+            {% else %}
+              30
+            {% endif %}
+        target:
+          entity_id: number.lux_ac_charge_end_battery_soc
+      - if: 
+        - condition: template
+          value_template: "{{ is_state('switch.lux_ac_charge_enable', 'off') }}"
+        then:
+        - service: switch.turn_on
+          target:
+            entity_id: switch.lux_ac_charge_enable
+      else:
+        - service: switch.turn_off
+          target:
+            entity_id: switch.lux_ac_charge_enable
+        - service: input_select.select_option
+          data: 
+            option: Disable
+          target:
+            entity_id: select.lux_ac_charge_type
+
+- id: reconnect_to_inverter
+  trigger:
+  - platform: time_pattern
+    minutes: /1
+  condition:
+  - condition: template
+    value_template: "{{ now().timestamp() - state_attr('sensor.lux_data_received_time', 'timestamp') > 60 * 20 }}"
+  action:
+  - service: luxpower.luxpower_reconnect
+    data:
+      dongle: "{{ state_attr('sensor.lux_data_received_time', 'dongle') }}"

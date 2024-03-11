@@ -11,7 +11,7 @@ if heating_mode == 'auto':
         heating_mode = 'swift'
     elif temp_diff <= -1.5 and not is_heating_only_hotfloor:
         heating_mode = 'fast'
-    elif temp_diff <= -0.2:
+    elif temp_diff <= -0.5:
         heating_mode = 'normal'
     else:
         heating_mode = 'minimum'

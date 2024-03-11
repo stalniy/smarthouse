@@ -76,7 +76,7 @@ services:
     container_name: signal-rest-api
     image: bbernhard/signal-cli-rest-api:latest
     environment:
-      - MODE=normal #supported modes: json-rpc, native, normal. json-prc is recommended for speed
+      - MODE=json-rpc #supported modes: json-rpc, native, normal. json-prc is recommended for speed
     ports:
       - 9135:8080
     volumes:

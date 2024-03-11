@@ -137,6 +137,8 @@ script:
         - 'docked'
         - 'returning'
       current_fan_speed: "{{ fan_speed if fan_speed is defined else 'custom' }}"
+      current_mop_mode: "{{ mop_mode if mop_mode is defined else 'custom' }}"
+      current_mop_intensity: "{{ mop_intensity if mop_intensity is defined else 'custom' }}"
     sequence:
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
@@ -159,12 +161,12 @@ script:
               target:
                 entity_id: select.roborock_s7_mop_mode
               data: 
-                option: "{{ mop_mode if mop_mode is defined else 'custom' }}"
+                option: "{{ current_mop_mode }}"
             - service: select.select_option
               target:
                 entity_id: select.roborock_s7_mop_intensity
               data: 
-                option: "{{ mop_intensity if mop_intensity is defined else 'custom' }}"
+                option: "{{ current_mop_intensity }}"
             - service: vacuum.send_command
               data:
                 command: app_segment_clean
@@ -173,13 +175,14 @@ script:
                     repeat: "{{ repeats if repeats is defined else 1 }}"
               target:
                 entity_id: vacuum.bruce
+            - delay: "00:00:05"
             - alias: Очікуємо поки робот почне прибирання
               wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
               timeout: "00:05:00"
             - event: important_home_event
               event_data:
                 message: |
-                  Брюс почав прибирання:
+                  Брюс почав прибирання (fan={{ current_fan_speed }}, mop={{ current_mop_intensity }}/{{ current_mop_mode }}):
                   {{ rooms | join("\n") }}
             else:
               - event: important_home_event

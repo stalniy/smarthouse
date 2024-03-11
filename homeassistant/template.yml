@@ -11,12 +11,5 @@
         | list 
         | count
       }}
-  - name: needs_hot_water_pump
-    state: >-
-      {{ 
-        states('light.kid_bathroom') == "on" or 
-        states('light.master_bathroom') == "on" or
-        states('binary_sensor.kitchen_motion') == "on"
-      }}
   - name: is_day
     state: "{{ 7 <= now().hour <= 21 }}"

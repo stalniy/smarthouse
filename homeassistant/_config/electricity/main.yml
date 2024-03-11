@@ -71,6 +71,17 @@ template:
     sensor:
       - name: energy_tariff
         state: "{{ 'day' if 7 <= (now() | as_local).hour < 23 else 'night' }}"
+  - trigger:
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+    - platform: event
+      event_type: my_event_template_reloaded
+    - platform: homeassistant
+      event: start
+    binary_sensor:
+    - name: is_cheap_grid_energy_period
+      state: "{{ 23 <= now().hour or now().hour < 7 }}"
   - binary_sensor:
       - name: has_connection_to_main
         state: | 
