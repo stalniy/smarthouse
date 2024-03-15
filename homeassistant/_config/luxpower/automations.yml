@@ -1,50 +1,84 @@
 - id: battery_charging_type_toggler
+  mode: restart
+  alias: Manage Lux battery cheap charging
   trigger:
     - platform: state
-      entity_id: binary_sensor.is_cheap_grid_energy_period
+      entity_id: binary_sensor.lux_may_ac_charge
       to: 
         - "on"
         - "off"
-      variables:
-        power_forecast_tomorrow: "{{ float(states('sensor.solcast_pv_forecast_forecast_tomorrow'), 0) }}"
   action:
-    - if:
+    - service: select.select_option
+      data: 
+        option: "{{ 'Time' if trigger.to_state.state == 'on' else 'Disable' }}"
+      target:
+        entity_id: select.lux_ac_charge_type
+
+- id: force_ac_first_in_cheap_grid_period_after_battery_charged
+  mode: restart
+  alias: Switch to Grid during cheap period after battery charged to expected level
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.lux_requires_ac_charging
+      from: 'on'
+      to: 'off'
+    - platform: state
+      entity_id: binary_sensor.is_cheap_grid_energy_period
+      to: 
+        - 'on'
+        - 'off'
+    - platform: state
+      entity_id: binary_sensor.lux_has_solar_output_live
+      to: 
+        - 'on'
+        - 'off'
+  variables: 
+    is_ac_first_enabled: |
+      {{
+        is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
+        is_state('binary_sensor.lux_requires_ac_charging', 'off') and
+        is_state('binary_sensor.lux_has_solar_output_live', 'off')
+      }}
+    start_time: "{{ now().strftime('%H:%M:%S') if is_ac_first_enabled else '00:00:00' }}"
+    end_time: "{{ states('time.lux_ac_charge_end1') if is_ac_first_enabled else '00:00:00' }}"
+  action: 
+    - if: 
       - condition: template
-        value_template: "{{ power_forecast_tomorrow <= 15 }}"
+        value_template: "{{ not is_state('time.lux_ac_first_start1', start_time) }}"
       then:
-      - service: input_select.select_option
+      - service: time.set_value
+        target:
+          entity_id: time.lux_ac_first_start1
         data: 
-          option: "{{ 'Battery SOC' if trigger.to_state.state == 'on' else 'Time' }}"
+          time: "{{ start_time }}"
+    - if: 
+      - condition: template
+        value_template: "{{ not is_state('time.lux_ac_first_end1', end_time) }}"
+      then:
+      - service: time.set_value
         target:
-          entity_id: select.lux_ac_charge_type
-      - service: number.set_value
-        data:
-          value: |
-            {% if power_forecast_tomorrow <= 5 %}
-              100
-            {% elif power_forecast_tomorrow <= 10 %}
-              60
-            {% else %}
-              30
-            {% endif %}
-        target:
-          entity_id: number.lux_ac_charge_end_battery_soc
-      - if: 
-        - condition: template
-          value_template: "{{ is_state('switch.lux_ac_charge_enable', 'off') }}"
-        then:
-        - service: switch.turn_on
-          target:
-            entity_id: switch.lux_ac_charge_enable
-      else:
-        - service: switch.turn_off
-          target:
-            entity_id: switch.lux_ac_charge_enable
-        - service: input_select.select_option
-          data: 
-            option: Disable
-          target:
-            entity_id: select.lux_ac_charge_type
+          entity_id: time.lux_ac_first_end1
+        data: 
+          time: "{{ end_time }}"
+
+- id: disable_force_charging
+  trigger:
+    - platform: time
+      at: input_datetime.ac_force_charge_finish_at
+    - platform: homeassistant
+      event: start
+  condition: 
+    - condition: template
+      value_template: "{{ is_state('binary_sensor.lux_ac_force_battery_charging', 'on') }}"
+  action:
+    - service: script.lux_ac_force_charging
+      data:
+        state: false
+    - service: input_datetime.set_datetime
+      data:
+        datetime: "{{ 0 | as_datetime }}"
+      target:
+        entity_id: input_datetime.ac_force_charge_finish_at
 
 - id: reconnect_to_inverter
   trigger:

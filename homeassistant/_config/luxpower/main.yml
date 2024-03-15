@@ -1,4 +1,5 @@
 automation: !include ./automations.yml
+script: !include ./scripts.yml
 
 homeassistant:  
   customize:
@@ -11,8 +12,14 @@ homeassistant:
           "6": "Battery SOC"
         }
 
+input_datetime:
+  ac_force_charge_finish_at:
+    name: Time to finish force AC charge
+    has_date: true
+    has_time: true
+
 template:
-  select:
+  - select:
     - name: lux_ac_charge_type
       state: "{{ (state_attr('number.lux_ac_charge_mode', 'mapping') | from_json).get(int(states('number.lux_ac_charge_mode')) | string) }}"
       options: "{{ (state_attr('number.lux_ac_charge_mode', 'mapping') | from_json).values() | list }}"
@@ -27,3 +34,87 @@ template:
                 | first 
                 | first 
             }}
+  - sensor:
+    - name: lux_ac_charge_battery_level_to
+      state_class: measurement
+      state: | 
+        {% set power_forecast_tomorrow = float(states('sensor.solcast_pv_forecast_forecast_tomorrow'), 0) %}
+        {% if power_forecast_tomorrow <= 5 %}
+          100
+        {% elif power_forecast_tomorrow <= 10 %}
+          70
+        {% elif power_forecast_tomorrow <= 15 %}
+          30
+        {% else %}
+          0
+        {% endif %}
+    - name: lux_duration_to_charge_battery # in hours
+      state_class: measurement
+      unit_of_measurement: h
+      state: |
+        {% set charge_power = float(states('number.lux_charge_current_limit'), 0) * 52 %}
+        {% set full_capacity = 4800 %}
+        {% set expected_capacity = full_capacity * float(states('sensor.lux_ac_charge_battery_level_to'), 0) / 100 %}
+        {% set current_capacity = full_capacity * float(states('sensor.lux_battery'), 0) / 100 %}
+
+        {{ 
+          0 if current_capacity >= expected_capacity else (expected_capacity - current_capacity) / charge_power 
+        }}
+    - name: lux_duration_to_discharge_battery # in hours
+      state_class: measurement
+      unit_of_measurement: h
+      state: |
+        {% set full_capacity = 4800 %}
+        {% set current_battery_percentage = float(states('sensor.lux_battery'), 0) %}
+        {% set current_power_consumption = float(states('sensor.lux_battery_discharge_live'), 0) %}  
+        {% set min_battery_percentage = float(states('number.lux_off_grid_discharge_cut_off_soc'), 0) if is_state('binary_sensor.inverter_connected_to_grid', 'off') else float(states('number.lux_on_grid_discharge_cut_off_soc'), 0) %}
+        
+        {% if current_battery_percentage > min_battery_percentage and current_power_consumption > 0 %}
+          {% set effective_remaining_capacity = full_capacity * (current_battery_percentage - min_battery_percentage) / 100 %}
+          {{ effective_remaining_capacity / current_power_consumption }}
+        {% else %}
+          0
+        {% endif %}
+  - binary_sensor:
+    - name: lux_requires_ac_charging
+      state: |
+        {{ 
+          float(states('sensor.lux_battery'), 0) <= float(states('number.lux_ac_charge_start_battery_soc'), 0) or 
+          float(states('sensor.lux_battery'), 0) < float(states('sensor.lux_ac_charge_battery_level_to'), 0)
+        }}
+    - name: lux_may_ac_charge
+      state: |
+        {{ 
+          is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and
+          is_state('binary_sensor.lux_requires_ac_charging', 'on') or
+          is_state('binary_sensor.lux_must_start_ac_charging', 'on')
+        }}
+    - name: lux_has_solar_output_live
+      state: "{{ float(states('sensor.lux_solar_output_live'), 0) > 0 }}"
+    - name: lux_ac_force_battery_charging
+      state: >-
+        {{ not is_state('time.lux_ac_charge_start3', '00:00:00') and 
+          is_state('select.lux_ac_charge_type', 'Time') 
+        }}
+  - trigger:
+    - platform: state
+      entity_id: 
+        - sensor.lux_duration_to_charge_battery
+        - binary_sensor.is_cheap_grid_energy_period
+    - platform: time_pattern
+      minutes: /15
+    binary_sensor:
+      - name: lux_must_start_ac_charging
+        state: |
+          {% set hours_to_charge = float(states('sensor.lux_duration_to_charge_battery'), 0) %}
+          {% if hours_to_charge == 0 %}
+            off
+          {% else %}
+            {{
+              is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
+              (now() + timedelta(hours=hours_to_charge)) >= today_at('6:30')
+            }}
+          {% endif %}
+
+    
+  
