@@ -249,9 +249,16 @@ template:
       state: >-
         {{
           is_state('binary_sensor.boiler_requires_reheating', 'on') or
-          float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) >= 1000 and
-          5 <= now().hour <= 19 or
-          now().hour >= 4 and is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
+          (
+            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) >= 1000 and
+            5 <= now().hour <= 19 and
+            (
+              float(states('sensor.lux_battery_discharge_live'), 0) == 0 or 
+              float(states('sensor.lux_battery_discharge_live'), 0) < 500 and float(states('sensor.lux_battery'), 0) > 50 or
+              float(states('sensor.lux_battery'), 0) > 40
+            ) 
+          ) or
+          4 <= now().hour < 7 and is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
           (float(states('sensor.lux_grid_flow_live'), 0) > 0 or is_state('binary_sensor.inverter_connected_to_grid', 'on'))
         }}
   - trigger:
@@ -343,8 +350,8 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_master_bedroom
     target_sensor: sensor.master_bedroom_climate_temperature
     away_temp: 15
-    comfort_temp: 20
-    home_temp: 19
+    comfort_temp: 19
+    home_temp: 18
     sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
@@ -352,18 +359,18 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_master_bathroom_hot_floor
     target_sensor: sensor.master_bathroom_climate_temperature
     away_temp: 15
-    comfort_temp: 21
+    comfort_temp: 20
     home_temp: 19
-    sleep_temp: 18
+    sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
     name: cabinet
     heater: input_boolean.thermostat_driven_heater_valve_cabinet
     target_sensor: sensor.cabinet_climate_temperature
     away_temp: 15
-    comfort_temp: 21
+    comfort_temp: 20
     home_temp: 19
-    sleep_temp: 19
+    sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
     name: kid_small_bedroom
@@ -371,7 +378,7 @@ climate:
     target_sensor: sensor.cabinet_climate_temperature # TODO: need sensor
     away_temp: 15
     comfort_temp: 20
-    home_temp: 19
+    home_temp: 18
     sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
@@ -380,7 +387,7 @@ climate:
     target_sensor: sensor.kid_big_bedroom_climate_temperature
     away_temp: 15
     comfort_temp: 20
-    home_temp: 19
+    home_temp: 18
     sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
@@ -388,9 +395,9 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_hall_and_small_bathroom
     target_sensor: sensor.kid_bathroom_climate_temperature
     away_temp: 15
-    comfort_temp: 22
-    home_temp: 21
-    sleep_temp: 20
+    comfort_temp: 20
+    home_temp: 20
+    sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
     name: livingroom
@@ -398,7 +405,7 @@ climate:
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 15
     comfort_temp: 21
-    home_temp: 20
+    home_temp: 19
     sleep_temp: 17
     precision: 0.1
   - platform: generic_thermostat
@@ -406,45 +413,45 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom1
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 7
-    comfort_temp: 22
-    home_temp: 21
-    sleep_temp: 21
+    comfort_temp: 21
+    home_temp: 20
+    sleep_temp: 18
     precision: 0.1
   - platform: generic_thermostat
     name: livingroom_hotfloor_fireplace
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom2
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 7
-    comfort_temp: 22
-    home_temp: 21
-    sleep_temp: 21
+    comfort_temp: 21
+    home_temp: 20
+    sleep_temp: 18
     precision: 0.1
   - platform: generic_thermostat
     name: livingroom_hotfloor_exit
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom3
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 10
-    comfort_temp: 22
-    home_temp: 21
-    sleep_temp: 21
+    comfort_temp: 21
+    home_temp: 19
+    sleep_temp: 18
     precision: 0.1
   - platform: generic_thermostat
     name: kitchen_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_kitchen_hot_floor
     target_sensor: sensor.kitchen_climate_temperature
     away_temp: 10
-    comfort_temp: 22
-    home_temp: 21
-    sleep_temp: 21
+    comfort_temp: 21
+    home_temp: 20
+    sleep_temp: 18
     precision: 0.1
   - platform: generic_thermostat
     name: entrance_room_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_entrance_tech_room
     target_sensor: sensor.entrance_room_climate_temperature
     away_temp: 10
-    comfort_temp: 22
-    home_temp: 20
-    sleep_temp: 16
+    comfort_temp: 20
+    home_temp: 19
+    sleep_temp: 17
     precision: 0.1
 
 timer:

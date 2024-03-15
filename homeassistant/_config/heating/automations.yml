@@ -300,6 +300,10 @@
                 | map(attribute='entity_id')
                 | list
             }}
+      - event: important_home_event
+        event_data:
+          message: |
+            Вимикаю опалення тому що лягли спати і зараз період дорогої енергії
         
 
 - id: configure_heater_heating_mode_and_preset

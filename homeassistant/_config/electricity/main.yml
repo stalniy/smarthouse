@@ -74,7 +74,7 @@ template:
   - trigger:
     - platform: time_pattern
       hours: "*"
-      minutes: 0
+      minutes: 55
     - platform: event
       event_type: my_event_template_reloaded
     - platform: homeassistant
@@ -82,6 +82,9 @@ template:
     binary_sensor:
     - name: is_cheap_grid_energy_period
       state: "{{ 23 <= now().hour or now().hour < 7 }}"
+      attributes:
+        start_time: "23:00:00"
+        end_time: "06:55:00"
   - binary_sensor:
       - name: has_connection_to_main
         state: | 

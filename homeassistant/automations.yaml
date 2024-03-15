@@ -1,15 +1,1 @@
-- id: '1686459780356'
-  alias: Повідомлення про розряджені девайси
-  description: ''
-  trigger:
-  - platform: state
-    entity_id:
-    - binary_sensor.has_devices_with_low_battery
-    to: 'on'
-  condition: []
-  action:
-  - service: notify.telegram_serhii
-    data:
-      message: Є девайси що розрядились нижче 15%
-      title: Розряджені девайси!
-  mode: single
+[]

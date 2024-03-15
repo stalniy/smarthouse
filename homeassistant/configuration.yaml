@@ -17,16 +17,16 @@ scene: !include scenes.yaml
 
 template: !include template.yml
 
-telegram_bot: 
-  platform: polling
-  api_key: !secret telegram_bot_key
-  allowed_chat_ids: 
-    - !secret telegram_bot_serhii_chat
+# telegram_bot: 
+#   platform: polling
+#   api_key: !secret telegram_bot_key
+#   allowed_chat_ids: 
+#     - !secret telegram_bot_serhii_chat
 
 notify:
-  - platform: telegram
-    name: telegram_serhii
-    chat_id: !secret telegram_bot_serhii_chat
+  # - platform: telegram
+  #   name: telegram_serhii
+  #   chat_id: !secret telegram_bot_serhii_chat
   - platform: signal_messenger
     name: signal_serhii
     url: "http://127.0.0.1:9135"
