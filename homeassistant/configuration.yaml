@@ -74,6 +74,7 @@ homeassistant:
     doghouse: !include _config/doghouse/main.yml
     camera: !include _config/camera/main.yml
     outside_light: !include _config/outside_light/main.yml
+    light_brightness: !include _config/light_brightness/main.yml
 
 python_script:
 ffmpeg:

@@ -6,8 +6,6 @@ mqtt:
 devices:
   '0xdc8e95fffe15d3e7':
     friendly_name: master_bathroom
-  '0xdc8e95fffe1e3877':
-    friendly_name: kid_bathroom
   '0xdc8e95fffe19bbe0':
     friendly_name: master_bathroom_towel_dryer
   '0xdc8e95fffe1e2e26':
@@ -137,6 +135,10 @@ devices:
     friendly_name: terace_door_lock
   '0xa4c138b6e99fbf5f':
     friendly_name: livingroom_tv
+  '0x001788010916b368':
+    friendly_name: '0x001788010916b368'
+  '0xa4c138a24835333a':
+    friendly_name: kid_bathroom
 advanced:
   pan_id: 6754
   log_level: warn
