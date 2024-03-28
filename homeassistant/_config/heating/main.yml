@@ -24,7 +24,7 @@ homeassistant:
       heater_type: radiator
       location: house
     climate.kid_small_bedroom:
-      heater_type: hotfloor
+      heater_type: radiator
       location: house
     climate.kid_big_bedroom:
       heater_type: radiator
@@ -90,8 +90,11 @@ input_select:
 input_boolean:
   heating_enabled:
     name: Включити опалення
+  enable_automatic_heating:
+    name: Вимкнути автоматичне опалення
   hwc_enabled: 
     name: Включити ГВС
+
   # because I have NO heating valves, I need thermostat to somewhere store its desired state
   # so then I can understand whether heating is required or not based on `hvac_action` attribute
   # and be able to optimize electisity usage by opening valves when heater doesn't heat
@@ -375,7 +378,7 @@ climate:
   - platform: generic_thermostat
     name: kid_small_bedroom
     heater: input_boolean.thermostat_driven_heater_valve_kid_small_bedroom
-    target_sensor: sensor.cabinet_climate_temperature # TODO: need sensor
+    target_sensor: sensor.kid_small_bedroom_climate_temperature
     away_temp: 15
     comfort_temp: 20
     home_temp: 18
@@ -447,7 +450,7 @@ climate:
   - platform: generic_thermostat
     name: entrance_room_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_entrance_tech_room
-    target_sensor: sensor.entrance_room_climate_temperature
+    target_sensor: sensor.entrance_room_motion_temperature
     away_temp: 10
     comfort_temp: 20
     home_temp: 19

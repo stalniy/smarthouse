@@ -28,7 +28,7 @@ input_select:
       - close_panoramic
       - close_everything
       - open
-
+    
 counter:
   kid_bathroom_switch:
     name: К-сть перемикань світла в дитячій ванній
@@ -71,6 +71,46 @@ template:
     - name: is_terace_door_unlocked
       device_class: lock
       state: "{{ is_state('binary_sensor.terace_door_lock_water_leak', 'off') }}"
+  - select:
+    - name: curtain_outside_mode
+      state: |
+        {% from 'house_covers.jinja' import covers_state %}
+        {{ covers_state() }}
+      options: |
+        {{[
+          'tv_watching_light_mode',
+          'tv_watching_mode',
+          'protect_panoramic',
+          'protect_all',
+          'open_all',
+          'custom'
+        ]}}
+      select_option:
+      - condition: template
+        value_template: "{{ option != 'custom' }}"
+      - service_template: "cover.{{ 'open' if option == 'open_all' else 'close' }}_cover"
+        target:
+          entity_id: |
+            {% from 'house_covers.jinja' import covers_group %}
+            {% if option == 'open_all' %}
+              {{ covers_group('all', 'closed') | from_json }}
+            {% else %}
+              {{ covers_group('all' if option == 'protect_all' else option, 'open') | from_json | list }}
+            {% endif %}
+      - condition: template
+        value_template: |
+          {% from 'house_covers.jinja' import covers_not_in %}
+          {{ 
+            option != 'open_all' and 
+            option != 'protect_all' and
+            covers_not_in(option, 'closed') | from_json | count > 0
+          }}
+      - service: cover.open_cover
+        target:
+          entity_id: |
+            {% from 'house_covers.jinja' import covers_not_in %}
+            {{ covers_not_in(option, 'closed') | from_json | list }}
+
 
 command_line:
   - switch:

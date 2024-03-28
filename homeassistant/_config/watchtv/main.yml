@@ -30,19 +30,19 @@ automation:
       - platform: state
         entity_id: sensor.tv_button_action
         to: single
-        variables:
-          curtain_mode: tv_watching_light_mode
     action: 
       - if:
           - condition: template
             value_template: "{{ is_state('switch.livingroom_tv', 'off') }}"
         then:
+          - service: light.turn_on
+            data:
+              brightness: 250
+            target:
+              entity_id: light.livingroom_tv_light
           - service: switch.turn_on
             target:
               entity_id: switch.livingroom_tv
-          - service: light.turn_on
-            target:
-              entity_id: light.livingroom_tv_light
         else: 
           - service: remote.turn_off
             target:

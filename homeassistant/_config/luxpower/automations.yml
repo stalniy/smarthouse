@@ -1,5 +1,6 @@
 - id: battery_charging_type_toggler
-  mode: restart
+  mode: queued
+  max: 2
   alias: Manage Lux battery cheap charging
   trigger:
     - platform: state
@@ -7,31 +8,29 @@
       to: 
         - "on"
         - "off"
+      for: "00:00:05"
   action:
     - service: select.select_option
       data: 
         option: "{{ 'Time' if trigger.to_state.state == 'on' else 'Disable' }}"
       target:
         entity_id: select.lux_ac_charge_type
+    - if:
+      - condition: template
+        value_template: "{{ trigger.to_state.state == 'off' and trigger.from_state.state == 'on' }}"
+      then:
+      - service: input_datetime.set_datetime
+        data:
+          datetime: "{{ now() }}"
+        target:
+          entity_id: input_datetime.ac_charge_finished_at
 
 - id: force_ac_first_in_cheap_grid_period_after_battery_charged
   mode: restart
   alias: Switch to Grid during cheap period after battery charged to expected level
   trigger:
-    - platform: state
-      entity_id: binary_sensor.lux_requires_ac_charging
-      from: 'on'
-      to: 'off'
-    - platform: state
-      entity_id: binary_sensor.is_cheap_grid_energy_period
-      to: 
-        - 'on'
-        - 'off'
-    - platform: state
-      entity_id: binary_sensor.lux_has_solar_output_live
-      to: 
-        - 'on'
-        - 'off'
+    platform: state
+    entity_id: input_datetime.ac_charge_finished_at
   variables: 
     is_ac_first_enabled: |
       {{
