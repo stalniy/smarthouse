@@ -17,6 +17,10 @@ input_datetime:
     name: Time to finish force AC charge
     has_date: true
     has_time: true
+  ac_charge_finished_at:
+    name: Time when finished last AC charge
+    has_date: true
+    has_time: true
 
 template:
   - select:
@@ -35,20 +39,7 @@ template:
                 | first 
             }}
   - sensor:
-    - name: lux_ac_charge_battery_level_to
-      state_class: measurement
-      state: | 
-        {% set power_forecast_tomorrow = float(states('sensor.solcast_pv_forecast_forecast_tomorrow'), 0) %}
-        {% if power_forecast_tomorrow <= 5 %}
-          100
-        {% elif power_forecast_tomorrow <= 10 %}
-          70
-        {% elif power_forecast_tomorrow <= 15 %}
-          30
-        {% else %}
-          0
-        {% endif %}
-    - name: lux_duration_to_charge_battery # in hours
+    - name: lux_duration_to_charge_battery
       state_class: measurement
       unit_of_measurement: h
       state: |
@@ -60,7 +51,7 @@ template:
         {{ 
           0 if current_capacity >= expected_capacity else (expected_capacity - current_capacity) / charge_power 
         }}
-    - name: lux_duration_to_discharge_battery # in hours
+    - name: lux_duration_to_discharge_battery
       state_class: measurement
       unit_of_measurement: h
       state: |
@@ -78,9 +69,12 @@ template:
   - binary_sensor:
     - name: lux_requires_ac_charging
       state: |
+        {% set battery_level = float(states('sensor.lux_battery'), 0) %}
+        {% set ac_charge_to_level = float(states('sensor.lux_ac_charge_battery_level_to'), 0) %}
+        {% set min_battery_level = float(states('number.lux_ac_charge_start_battery_soc'), 0) %}
         {{ 
-          float(states('sensor.lux_battery'), 0) <= float(states('number.lux_ac_charge_start_battery_soc'), 0) or 
-          float(states('sensor.lux_battery'), 0) < float(states('sensor.lux_ac_charge_battery_level_to'), 0)
+          battery_level <= min_battery_level and min_battery_level < ac_charge_to_level or 
+          battery_level < ac_charge_to_level
         }}
     - name: lux_may_ac_charge
       state: |
@@ -115,6 +109,29 @@ template:
               (now() + timedelta(hours=hours_to_charge)) >= today_at('6:30')
             }}
           {% endif %}
+  - trigger:
+    - platform: state
+      entity_id:
+        - sensor.solcast_pv_forecast_forecast_tomorrow
+        - sensor.solcast_pv_forecast_forecast_today
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+    sensor:
+    - name: lux_ac_charge_battery_level_to
+      unit_of_measurement: "%"
+      state_class: measurement
+      state: | 
+        {% set power_forecast = float(states('sensor.solcast_pv_forecast_forecast_tomorrow') if now().hour >= 7 else states('sensor.solcast_pv_forecast_forecast_today'), 0) %}
+        {% if power_forecast <= 5 %}
+          100
+        {% elif power_forecast <= 10 %}
+          70
+        {% elif power_forecast <= 15 %}
+          40
+        {% else %}
+          0
+        {% endif %}
 
     
   

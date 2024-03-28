@@ -69,12 +69,11 @@ homeassistant:
     ventilation: !include _config/ventilation/main.yml
     ventillation_kitchen_stove: !include _config/ventillation_kitchen_stove/main.yml
     watchtv: !include _config/watchtv/main.yml
-    kitchen_light_control: !include _config/kitchen_light/main.yml
+    house_light: !include _config/house_light/main.yml
+    outside_light: !include _config/outside_light/main.yml
     security: !include _config/security/main.yml
     doghouse: !include _config/doghouse/main.yml
     camera: !include _config/camera/main.yml
-    outside_light: !include _config/outside_light/main.yml
-    light_brightness: !include _config/light_brightness/main.yml
 
 python_script:
 ffmpeg:

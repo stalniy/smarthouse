@@ -1,0 +1,108 @@
+automation:
+  - id: turn_off_light_in_entrance_room
+    trigger:
+      platform: state
+      entity_id: binary_sensor.entrance_room_motion_occupancy
+      to: 'off'
+      for: "00:01:00"
+    condition: 
+      - condition: template
+        value_template: "{{ is_state('switch.entrance_room_light', 'on') }}"
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.entrance_room_light
+
+  - id: toggle_kitchen_light
+    alias: Kitchen light control
+    mode: restart
+    trigger:  
+      # - platform: mqtt
+      #   topic: zb2mqtt/kitchen_main_light_toggler
+      #   variables: 
+      #     process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
+      #     new_state: "on"
+      - platform: state
+        # entity_id: binary_sensor.kitchen_motion
+        entity_id: binary_sensor.kitchen_presence
+        to: 'on'
+      - platform: state
+        entity_id: binary_sensor.kitchen_presence
+        to: 'off'
+        for: "00:01:00"
+    variables: 
+      new_state: | 
+        {% set is_on = trigger.to_state.state == 'on' and float(states('sensor.kitchen_presence_sensor_light_level'), 0) <= 10 %}
+        {{ 'on' if is_on else 'off' }}
+    condition:
+      - condition: template
+        value_template: "{{ not is_state('light.kitchen_light', new_state) }}"
+    action:
+      - service_template: "light.turn_{{ new_state }}"
+        target:
+          entity_id: light.kitchen_light
+
+  - id: toggle_kitchen_bar_light
+    alias: Kitchen bar light control
+    mode: restart
+    trigger:  
+      - platform: state
+        entity_id: binary_sensor.kitchen_bar_presence
+        to: 'on'
+        for: '00:00:05'
+      - platform: state
+        entity_id: binary_sensor.kitchen_bar_presence
+        to: 'off'
+        for: '00:00:30'
+      # - platform: mqtt
+      #   topic: zb2mqtt/kitchen_bar_light_toggler
+      #   variables: 
+      #     process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
+      #     new_state: "on"
+    variables: 
+      new_state: | 
+        {% set is_on = trigger.to_state.state == 'on' and float(states('sensor.kitchen_presence_sensor_light_level'), 0) <= 10 %}
+        {{ 'on' if is_on else 'off'  }}
+    condition:
+      - condition: template
+        value_template: "{{ not is_state('light.kitchen_bar', new_state) }}"
+    action:
+      - service_template: "light.turn_{{ new_state }}"
+        target:
+          entity_id: light.kitchen_bar
+
+  - id: set_brightness_level
+    alias: Set brightness level
+    trigger:
+      - platform: homeassistant
+        event: start
+      - platform: event
+        event_type: sleeping_time_start
+      - platform: event
+        event_type: sleeping_time_end
+      - platform: time
+        at: 
+          - '21:00:00'
+          - '22:00:00'
+          - '23:00:00'
+          - '00:00:01'
+    variables:
+      brightness: |
+        {% set is_night = 21 <= now().hour or now().hour < 7 %}
+
+        {{{
+          'kid_bathroom': 68 if is_night else 150
+        }}}
+    action:
+      - service: light.turn_on
+        data:
+          brightness: "{{ brightness.kid_bathroom }}"
+        target:
+          entity_id: light.kid_bathroom
+      - service: light.turn_off
+        target:
+          entity_id: light.kid_bathroom
+      - delay: '00:00:01'
+      - service: light.turn_off
+        target:
+          entity_id: light.kid_bathroom

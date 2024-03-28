@@ -9,16 +9,17 @@ lux_ac_force_charging:
         boolean:
   variables:
     format: "{{ '%H:%M:00' if state else '00:00:00' }}"
-    start_time: "{{ (now() + timedelta(minutes=1)).format(format) }}"
-    end_time: "{{ (now() + timedelta(minutes=180)).format(format) }}"
+    start_time: "{{ (now() + timedelta(minutes=1)).strftime(format) }}"
+    end_time: "{{ (now() + timedelta(minutes=180)).strftime(format) }}"
+    ac_charge_type: "{{ 'Time' if state else 'Disable' }}"
   sequence:
     - if:
       - condition: template
-        value_template: "{{ states('select.lux_ac_charge_type') != 'Time' }}"
+        value_template: "{{ states('select.lux_ac_charge_type') != ac_charge_type }}"
       then:
         - service: select.select_option
           data: 
-            option: "Time"
+            option: "{{ ac_charge_type }}"
           target:
             entity_id: select.lux_ac_charge_type
     - service: time.set_value
@@ -33,7 +34,7 @@ lux_ac_force_charging:
         entity_id: time.lux_ac_charge_end3
     - service: input_datetime.set_datetime
       data:
-        datetime: "{{ 0 | as_datetime if end_time == '00:00:00' and start_time == end_time else today_at(end_time) }}"
+        datetime: "{{ as_datetime(0) if end_time == '00:00:00' and start_time == end_time else today_at(end_time) }}"
       target:
         entity_id: input_datetime.ac_force_charge_finish_at
 

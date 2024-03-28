@@ -18,9 +18,7 @@ automation:
           {{
             trigger.event.data.Code in ['CrossLineDetection', 'CrossRegionDetection'] and
             ( 
-              is_state('group.residents', 'not_home') or 
-              is_state('binary_sensor.' + base_entity_id + '_smart_motion_human', 'on') or
-              is_state('binary_sensor.' + base_entity_id + '_smart_motion_vehicle', 'on')
+              is_state('group.residents', 'not_home')
             )
           }} 
     action:
@@ -31,7 +29,14 @@ automation:
           filename: "{{ photo_path }}"
       - event: important_home_event
         event_data:
-          message: "Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}"
+          message: |
+            Зона: {{ trigger.event.data.data.Name | replace('_', ' ') }}
+            {% if is_state('binary_sensor.' + base_entity_id + '_smart_motion_human', 'on') %}
+              Помічена людина
+            {% endif %}
+            {% if is_state('binary_sensor.' + base_entity_id + '_smart_motion_vehicle', 'on') %}
+              Помічена автівка
+            {% endif %}
           attachments:
             - "{{ photo_path }}"
 
@@ -76,6 +81,7 @@ automation:
           name: "{{ event.Name }}"
           direction: "{{ event['Direction'] }}"
           object_type: "{{ event['Object']['ObjectType'] }}"
+          original: "{{ trigger.event.data }}"
 
   - id: proxy_dahua_cross_region_events
     mode: parallel
@@ -94,3 +100,4 @@ automation:
           name: "{{ event.Name }}"
           direction: "{{ event['Direction'] }}"
           object_type: "{{ event['Object']['ObjectType'] }}"
+          original: "{{ trigger.event.data }}"

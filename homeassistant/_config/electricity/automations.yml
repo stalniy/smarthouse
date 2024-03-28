@@ -14,8 +14,8 @@
       data:
         option: "{{ states('sensor.energy_tariff') }}"
 
-- id: send_energy_summary_to_telegram
-  alias: Відправка деталей про електрику в Телеграм
+- id: mot_energy_summary_to_residents
+  alias: Відправка деталей про електрику
   initial_state: true
   trigger:
     - platform: time
@@ -47,8 +47,10 @@
 - id: notify_when_main_power_lost
   trigger:  
     - platform: state
-      entity_id: binary_sensor.has_connection_to_main
-      for: 00:05:00
+      entity_id: binary_sensor.inverter_connected_to_grid
+      to: 
+        - "on"
+        - "off"
     - platform: event
       event_type: external_command
       event_data:
@@ -57,12 +59,12 @@
     - event: important_home_event
       event_data:
         message: | 
-          {% if is_state('binary_sensor.has_connection_to_main', 'on') %}
+          {% if is_state('binary_sensor.inverter_connected_to_grid', 'on') %}
             З'явилась мережа.
           {% else %}
             Зникла мережа.
           {% endif %}
           Напруга:
-          1. {{ states('sensor.power_consumption_voltage_x') }}
-          2. {{ states('sensor.power_consumption_voltage_y') }}
-          3. {{ states('sensor.power_consumption_voltage_z') }}
+          1. {{ states('sensor.power_consumption_voltage_x') }} ({{ states('sensor.power_consumption_power_x') }})
+          2. {{ states('sensor.power_consumption_voltage_y') }} ({{ states('sensor.power_consumption_power_y') }})
+          3. {{ states('sensor.power_consumption_voltage_z') }} ({{ states('sensor.power_consumption_power_z') }})

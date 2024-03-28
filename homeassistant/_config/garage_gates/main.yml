@@ -10,21 +10,23 @@ switch:
       garage_gates_left_open:
         friendly_name: Ліві гаражні ворота
         value_template: "{{ is_state('binary_sensor.garage_gates_left_open_contact', 'on') }}"
-        availability_template: |
-          {{ 
-            has_value('binary_sensor.garage_gates_left_open_contact') and
-            has_value('switch.garage_gates_bot_left')
-          }}
+        availability_template: "{{ has_value('switch.garage_gates_left_trigger') }}"
         turn_on:
-          service: script.toggle_garage_gate
-          data:
-            gate: left
-            state: true
+          - if:
+            - condition: template
+              value_template: "{{ is_state('switch.garage_gates_power', 'off') }}"
+            then:
+            - service: switch.turn_on
+              entity_id: switch.garage_gates_power
+            - wait_template: "{{ float(states('sensor.garage_gates_power_current'), 0) >= 0.1 }}"
+              timeout: "00:00:05"
+          - service: switch.toggle
+            target:
+              entity_id: switch.garage_gates_left_trigger
         turn_off:
-          service: script.toggle_garage_gate
-          data:
-            gate: left
-            state: false
+          - service: switch.toggle
+            target:
+              entity_id: switch.garage_gates_left_trigger
         icon_template: >-
           {% if is_state('binary_sensor.garage_gates_left_open_contact', 'on') %}
             mdi:garage-open

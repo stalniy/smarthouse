@@ -1,0 +1,59 @@
+{% set cover_groups = {
+    'tv_watching_light_mode': [
+        'cover.livingroom_outside_curtain_1',
+        'cover.livingroom_outside_curtain_2'
+    ] | sort,
+    'tv_watching_mode': [
+        'cover.livingroom_outside_curtain_1',
+        'cover.livingroom_outside_curtain_2',
+        'cover.terrace_outside_curtain'
+    ] | sort,
+    'protect_panoramic': [
+        'cover.livingroom_outside_curtain_1',
+        'cover.livingroom_outside_curtain_2',
+        'cover.terrace_outside_curtain',
+        'cover.master_bedroom_outside_curtain',
+    ] | sort, 
+    'all': [
+        'cover.livingroom_outside_curtain_1',
+        'cover.livingroom_outside_curtain_2',
+        'cover.terrace_outside_curtain',
+        'cover.master_bedroom_outside_curtain',
+        'cover.kitchen_outside_curtain',
+        'cover.kid_small_outside_curtain',
+        'cover.kid_big_outside_curtain',
+        'cover.cabinet_outside_curtain',
+    ] | sort
+} %}
+
+{% macro covers_state() %}
+    {% set closed_covers = cover_groups.all | select('is_state', 'closed') | list | sort %}
+
+    {% if closed_covers | count == 0 %}
+        open_all
+    {% else %}
+        {% set matched_group = namespace(value='custom')%}
+        {% for group, list in cover_groups.items() %}
+            {% if closed_covers == list %}
+                {% set matched_group.value = group %}
+            {% endif %}
+        {% endfor %}
+        {{ matched_group.value }}
+    {% endif %}
+{% endmacro %}
+
+{% macro covers_group(name, state) %}
+    {{ cover_groups[name]
+        | select('is_state_attr', 'current_position', 100 if state == 'open' else 0) 
+        | list 
+        | to_json 
+    }}
+{% endmacro %}
+
+{% macro covers_not_in(group, state) %}
+    {{ covers_group('all', state) 
+        | reject('in', cover_groups[group])
+        | list 
+        | to_json
+    }}
+{% endmacro %}

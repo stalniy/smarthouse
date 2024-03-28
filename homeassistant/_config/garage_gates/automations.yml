@@ -61,8 +61,8 @@
     - condition: template
       value_template: | 
         {{ 
-          states('binary_sensor.garage_gates_left_open_contact') == "off" and
-          states('binary_sensor.garage_gates_right_open_contact') == "off" or 
+          is_state('binary_sensor.garage_gates_left_open_contact', 'off') and
+          is_state('binary_sensor.garage_gates_right_open_contact', "off") or 
           force_power_off is defined and force_power_off
         }}
   action:
@@ -77,23 +77,46 @@
   mode: single
   alias: "Ввімкнути живлення на ворота, коли виходжу з будинку"
   trigger:
-    platform: event
-    event_type: dahua_event_received
-    event_data:
-      action: Start
-      Code: CrossLineDetection
+    - platform: event
+      event_type: yard_crossed_line
+      event_data:
+        name: house_near_stairs
+        direction: LeftToRight
+      variables:
+        is_human: |
+          {{ is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') }}
+    - platform: event
+      event_type: yard_crossed_line
+      event_data:
+        name: house_garage_gates_direction
+        direction: LeftToRight
+      variables:
+        is_human: | 
+          {{ is_state('binary_sensor.camera_between_house_and_garage_smart_motion_human', 'on') }}
+    - platform: event
+      event_type: yard_crossed_line
+      event_data:
+        name: garage_home_direction
+        object_type: Human
+        direction: LeftToRight
+      variables:
+        is_human: true
+    - platform: event
+      event_type: yard_crossed_line
+      event_data:
+        name: yard_gates
+        object_type: Human
+        direction: LeftToRight
+      variables:
+        is_human: true
   condition:
     - condition: template
+      alias: Gates are closed and powered off
       value_template: |
         {{ 
-          trigger.event.data.data.Name in ['house_near_stairs', 'garage_home_direction', 'house_entrance'] and
-          trigger.event.data.data.Direction == 'LeftToRight' and
           is_state('binary_sensor.garage_gates_left_open_contact', 'off') and
           is_state('binary_sensor.garage_gates_right_open_contact', 'off') and
-          is_state('switch.garage_gates_power', 'off') and (
-            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') or
-            is_state('binary_sensor.camera_garage_gates_smart_motion_human', 'on')
-          )
+          is_state('switch.garage_gates_power', 'off') and is_human
         }}
   action:
     - service: switch.turn_on

@@ -23,6 +23,6 @@ template:
     - name: bathroom_humidity_high
       state: |
         {{
-          float(states('sensor.kid_bathroom_climate_humidity'), 0) >= 70 or
-          float(states('sensor.master_bathroom_climate_humidity'), 0) >= 70
+          float(states('sensor.kid_bathroom_climate_humidity'), 0) >= 65 or
+          float(states('sensor.master_bathroom_climate_humidity'), 0) >= 65
         }}

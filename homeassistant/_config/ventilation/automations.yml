@@ -4,20 +4,23 @@
     - id: schedule
       platform: state
       entity_id: binary_sensor.requires_bathroom_ventillation
+      to: 
+        - 'on'
+        - 'off'
       variables:
         schedule_fan_state: "{{ 'on' if trigger.to_state.state == 'on' else 'off' }}"
         fan_turn_on_at: |
           {% if schedule_fan_state == 'on' and is_state('switch.bathroom_fan', 'off') %}
-            {{ now().timestamp() + 5 * 60 }}
+            {{ now() + timedelta(minutes=5) }}
           {% else %}
-            1
+            {{ 0 | as_datetime }}
           {% endif %}
         fan_turn_off_at: |
           {% if schedule_fan_state == 'off' and is_state('switch.bathroom_fan', 'on') %}
-            {% set delay_in_mins = 120 if is_state('binary_sensor.bathroom_humidity_high', 'on') > 0 else 10 %}
-            {{ now().timestamp() + delay_in_mins * 60 }}
+            {% set delta = timedelta(hours=1) if is_state('binary_sensor.bathroom_humidity_high', 'on') else timedelta(minutes=5) %}
+            {{ now() + delta }}
           {% else %}
-            1
+            {{ 0 | as_datetime }}
           {% endif %}
     - platform: time
       at: input_datetime.bathroom_fan_turn_on_at
@@ -31,36 +34,43 @@
       entity_id: binary_sensor.bathroom_humidity_high
       to: 'off'
       variables:  
-        fan_command: turn_off
+        fan_turn_off_at: "{{ now() + timedelta(minutes=10) if is_state('switch.bathroom_fan', 'on') else as_datetime(0) }}"
   mode: restart
   action:
     - if: 
       - condition: template
-        value_template: "{{ trigger.id == 'schedule' }}"
+        value_template: "{{ fan_turn_on_at is defined }}"
       then:
-        - alias: Запланувати час ввімкнення вентилятора
-          service: input_datetime.set_datetime
-          data:
-            entity_id: "input_datetime.bathroom_fan_turn_on_at"
-            timestamp: "{{ fan_turn_on_at | float }}"
-        - alias: Запланувати час вимкнення вентилятора
-          service: input_datetime.set_datetime
-          data:
-            entity_id: "input_datetime.bathroom_fan_turn_off_at"
-            timestamp: "{{ fan_turn_off_at | float }}"
-      else:
-        - alias: Ввікнути/Вимкнути вентиляцію
-          service_template: "switch.{{ fan_command }}"
-          entity_id: switch.bathroom_fan
-        - condition: template
-          value_template: "{{ fan_command == 'turn_off' }}"
-        - alias: Видаляємо запланований контроль вентилятора
-          service: input_datetime.set_datetime
-          data:
-            entity_id: 
-              - input_datetime.bathroom_fan_turn_on_at
-              - input_datetime.bathroom_fan_turn_off_at
-            timestamp: 1
+      - alias: Запланувати час ввімкнення вентилятора
+        service: input_datetime.set_datetime
+        data:
+          entity_id: "input_datetime.bathroom_fan_turn_on_at"
+          datetime: "{{ fan_turn_on_at }}"
+    - if:
+      - condition: template
+        value_template: "{{ fan_turn_off_at is defined }}"
+      then:
+      - alias: Запланувати час вимкнення вентилятора
+        service: input_datetime.set_datetime
+        data:
+          entity_id: "input_datetime.bathroom_fan_turn_off_at"
+          datetime: "{{ fan_turn_off_at }}"
+    - if:
+      - condition: template
+        value_template: "{{ fan_command is defined }}"
+      then:
+      - alias: Ввікнути/Вимкнути вентиляцію
+        service_template: "switch.{{ fan_command }}"
+        entity_id: switch.bathroom_fan
+      - condition: template
+        value_template: "{{ fan_command == 'turn_off' }}"
+      - alias: Видаляємо запланований контроль вентилятора
+        service: input_datetime.set_datetime
+        data:
+          entity_id: 
+            - input_datetime.bathroom_fan_turn_on_at
+            - input_datetime.bathroom_fan_turn_off_at
+          datetime: "{{ 0 | as_datetime }}"
 
 - alias: Керування вентиляцією в гардеробних
   trigger:
@@ -109,8 +119,8 @@
 - id: turn_off_ventilation_when_sleeping
   alias: Turn off ventilation when go to sleep
   trigger:
-    - platform: state
-      entity_id: input_select.family_state
+    - platform: event
+      event_type: sleeping_time_start
   action:
     - service: switch.turn_off
       target:

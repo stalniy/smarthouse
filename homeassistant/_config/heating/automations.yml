@@ -102,6 +102,9 @@
     variables:
       heating_state: "{{ trigger.to_state.state }}"
     for: "00:00:03"
+  condition:
+    - condition: template
+      value_template: "{{ is_state('input_boolean.enable_automatic_heating', 'on') }}"
   action:
     - service_template: "input_boolean.turn_{{ heating_state }}"
       entity_id: input_boolean.heating_enabled
@@ -281,30 +284,29 @@
               | map(attribute="entity_id") 
               | list 
           }}
-    - if: 
-      - condition: template
-        value_template: |
-          {{ 
-            is_state('sensor.heating_preset_mode', 'sleep') and 
-            is_state('binary_sensor.is_cheap_grid_energy_period', 'off') 
-          }}
-      then:
-      - service: climate.set_hvac_mode
-        data:
-          hvac_mode: "off"
-        target:
-          entity_id: >-
-            {{ states.climate
-                | selectattr('attributes.location', 'eq', 'house')
-                | selectattr('state', 'eq', 'heat')
-                | map(attribute='entity_id')
-                | list
-            }}
-      - event: important_home_event
-        event_data:
-          message: |
-            Вимикаю опалення тому що лягли спати і зараз період дорогої енергії
-        
+    # - if: 
+    #   - condition: template
+    #     value_template: |
+    #       {{ 
+    #         is_state('sensor.heating_preset_mode', 'sleep') and 
+    #         is_state('binary_sensor.is_cheap_grid_energy_period', 'off') 
+    #       }}
+    #   then:
+    #   - service: climate.set_hvac_mode
+    #     data:
+    #       hvac_mode: "off"
+    #     target:
+    #       entity_id: >-
+    #         {{ states.climate
+    #             | selectattr('attributes.location', 'eq', 'house')
+    #             | selectattr('state', 'eq', 'heat')
+    #             | map(attribute='entity_id')
+    #             | list
+    #         }}
+    #   - event: important_home_event
+    #     event_data:
+    #       message: |
+    #         Вимикаю опалення тому що лягли спати і зараз період дорогої енергії
 
 - id: configure_heater_heating_mode_and_preset
   trigger:
