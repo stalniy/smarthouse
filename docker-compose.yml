@@ -6,6 +6,7 @@ services:
     volumes:
       - /home/homeman/smarthome/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
     restart: unless-stopped
     privileged: true
     network_mode: host
@@ -74,6 +75,7 @@ services:
   
   signal-cli-rest-api:
     container_name: signal-rest-api
+    restart: unless-stopped
     image: bbernhard/signal-cli-rest-api:latest
     environment:
       - MODE=json-rpc #supported modes: json-rpc, native, normal. json-prc is recommended for speed

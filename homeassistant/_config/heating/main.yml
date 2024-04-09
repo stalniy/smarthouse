@@ -62,6 +62,12 @@ input_number:
     step: 1
     icon: mdi:thermometer-water
     unit_of_measurement: °C
+  min_heating_temp_diff:
+    name: Мін. різниця температур повітря в кімнатах 
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+    min: -30
+    max: 30
 
 input_datetime: 
   disable_hot_floor_pump_at:
@@ -87,11 +93,10 @@ input_select:
       - only_hot_floor_eco
       - only_radiators
       - both
+      - 'off' # disable automatic heating
 input_boolean:
   heating_enabled:
     name: Включити опалення
-  enable_automatic_heating:
-    name: Вимкнути автоматичне опалення
   hwc_enabled: 
     name: Включити ГВС
 
@@ -142,22 +147,12 @@ template:
           | join(',\n')
         %}
         {{ 'none' if result == '' else result }}
-    - name: house_min_heating_temp_diff
-      state_class: measurement
-      state: |
-        {% set min = namespace(value=0) %}
-        {% for entity in states.climate | selectattr('attributes.location', 'eq', 'house') | list %}
-          {% if entity.state == 'heat' %}
-            {% set diff = float(entity.attributes.current_temperature, 0) - float(entity.attributes.temperature, 0) %}
-            {% set min.value = diff if min.value > diff else min.value %}
-          {% endif %}
-        {% endfor %}
-        {{ min.value }}
         
   - binary_sensor: 
     - name: is_day_cheap_heating_period
       state: "{{ is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and is_state('binary_sensor.is_day_heating_time', 'on') }}"
     - name: is_hot_floor_valves_open
+      delay_on: 00:03:00 # time to open heater valve
       state: |
         {{ ([
           states('switch.heater_valve_master_bathroom_hot_floor'),
@@ -167,6 +162,16 @@ template:
           states('switch.heater_valve_hot_floor_livingroom1'),
           states('switch.heater_valve_kitchen_hot_floor'),
           states('switch.heater_valve_hot_floor_entrance_tech_room')
+        ] | select('eq', 'off') | first) == 'off' }}
+    - name: is_radiator_valves_open
+      delay_on: 00:03:00 # time to open heater valve
+      state: |
+        {{ ([
+          states('switch.heater_valve_master_bedroom'),
+          states('switch.heater_valve_cabinet'),
+          states('switch.heater_valve_kid_small_bedroom'),
+          states('switch.heater_valve_kid_big_bedroom'),
+          states('switch.heater_valve_livingroom'),
         ] | select('eq', 'off') | first) == 'off' }}
     - name: hot_floor_pump_required
       state: |
@@ -459,4 +464,4 @@ climate:
 
 timer:
   hot_water_turn_off_after_time_based_on:
-    duration: "00:10:00"
+    duration: "00:05:00"

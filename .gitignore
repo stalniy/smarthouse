@@ -3,6 +3,7 @@ secrets.yml
 /hass_components
 /homeassistant/custom_components/hacs
 /homeassistant/custom_components/luxpower
+/homeassistant/custom_components/tpms_ble
 /homeassistant/custom_components/solcast_solar
 /signal-cli
 .storage

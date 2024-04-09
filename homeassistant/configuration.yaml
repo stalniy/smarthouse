@@ -82,6 +82,7 @@ logger:
   default: warning
   logs:
     homeassistant.components.python_script.heating_ebus_sync.py: info
+    custom_components.tpms_ble: debug
     # custom_components.dahua: debug
 
 

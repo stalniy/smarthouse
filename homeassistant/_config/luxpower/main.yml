@@ -77,6 +77,8 @@ template:
           battery_level < ac_charge_to_level
         }}
     - name: lux_may_ac_charge
+      delay_on: "00:00:05"
+      delay_off: "00:00:05"
       state: |
         {{ 
           is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and

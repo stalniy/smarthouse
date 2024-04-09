@@ -175,7 +175,7 @@ script:
                     repeat: "{{ repeats if repeats is defined else 1 }}"
               target:
                 entity_id: vacuum.bruce
-            - delay: "00:00:05"
+            - delay: "00:00:31" # wait for new state being polled
             - alias: Очікуємо поки робот почне прибирання
               wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
               timeout: "00:05:00"
@@ -202,6 +202,8 @@ script:
                 data:
                   zones: [livingroom_entertainment]
                   fan_speed: "{{ current_fan_speed }}"
+                  mop_intensity: "{{ current_mop_intensity }}"
+                  mop_mode: "{{ current_mop_mode }}"
         else:
           - event: important_home_event
             event_data:
@@ -238,6 +240,27 @@ script:
               - turbo
               - max
               - custom
+      mop_mode:
+        name: Mop mode
+        default: custom
+        selector: 
+          select: 
+            options:
+              - standard
+              - deep
+              - deep_plus
+              - custom
+      mop_intensity:
+        name: Mop intencity
+        default: custom
+        selector:
+          select: 
+            options:
+              - 'off'
+              - mild
+              - moderate
+              - intense
+              - custom
     variables:  
       zones_coords: |
         {% 
@@ -255,6 +278,9 @@ script:
       start_on_vacuum_state:
         - 'docked'
         - 'returning'
+      current_fan_speed: "{{ fan_speed if fan_speed is defined else 'custom' }}"
+      current_mop_mode: "{{ mop_mode if mop_mode is defined else 'custom' }}"
+      current_mop_intensity: "{{ mop_intensity if mop_intensity is defined else 'custom' }}"
     sequence: 
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
@@ -264,13 +290,24 @@ script:
         target:
           entity_id: vacuum.bruce
         data:
-          fan_speed: "{{ fan_speed if fan_speed is defined else 'balanced' }}"
+          fan_speed: "{{ current_fan_speed }}"
+      - service: select.select_option
+        target:
+          entity_id: select.roborock_s7_mop_mode
+        data: 
+          option: "{{ current_mop_mode }}"
+      - service: select.select_option
+        target:
+          entity_id: select.roborock_s7_mop_intensity
+        data: 
+          option: "{{ current_mop_intensity }}"
       - service: vacuum.send_command
         data:
           command: app_zoned_clean
           params: "{{ zones_coords }}"
         target:
           entity_id: vacuum.bruce
+      - delay: "00:00:31" # wait for new state being polled
       - alias: Очікуємо поки робот почне прибирання
         wait_template: "{{ is_state('vacuum.bruce', 'cleaning') }}"
         timeout: "00:05:00"

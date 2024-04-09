@@ -6,12 +6,12 @@
       value_template: "{{ is_state('counter.kid_bathroom_switch', '3') }}"
       variables:
         bathroom_id: child_bathroom
-        feedback_entity_id: switch.kid_bathroom
+        feedback_entity_id: light.kid_bathroom
     - platform: template
       value_template: "{{ is_state('counter.master_bathroom_switch', '3') }}"
       variables:
         bathroom_id: master_bathroom
-        feedback_entity_id: switch.master_bathroom
+        feedback_entity_id: light.master_bathroom
   action:
     - service: script.light_feedback
       data:

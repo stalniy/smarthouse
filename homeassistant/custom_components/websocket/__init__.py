@@ -17,7 +17,7 @@ from homeassistant.helpers.template import Template
 
 from aiohttp import ClientError, ClientResponseError, ClientSession, TCPConnector
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant, EventOrigin
+from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant, EventOrigin, callback
 from homeassistant.exceptions import ConfigEntryNotReady, PlatformNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EVENT_HOMEASSISTANT_START
@@ -82,6 +82,8 @@ async def async_setup(hass: HomeAssistant, config: Config):
 
   async def connect_to_websockets(event):
     tasks = [asyncio.create_task(proxy_websocket_events(item_config)) for item_config in config[DOMAIN]]
+    
+    @callback
     def disconnect():
       for task in tasks:
         task.cancel()

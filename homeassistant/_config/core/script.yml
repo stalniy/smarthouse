@@ -10,16 +10,16 @@ light_feedback:
       selector:
         entity:
           filter:
-            - domain: switch
+            - domain: light
   variables:
     current_state: "{{ states(entity_id) }}"
     inversed_state: "{{ 'off' if is_state(entity_id, 'on') else 'on' }}"
   sequence:
-    - service_template: "switch.turn_{{ inversed_state }}"
+    - service_template: "light.turn_{{ inversed_state }}"
       target:
         entity_id: "{{ entity_id }}"
     - delay: "00:00:01"
-    - service_template: "switch.turn_{{ current_state }}"
+    - service_template: "light.turn_{{ current_state }}"
       target:
         entity_id: "{{ entity_id }}"
 

@@ -116,12 +116,12 @@
         {{ 
           is_state('binary_sensor.garage_gates_left_open_contact', 'off') and
           is_state('binary_sensor.garage_gates_right_open_contact', 'off') and
-          is_state('switch.garage_gates_power', 'off') and is_human
+          is_state('switch.garage_gates_left_power', 'off') and is_human
         }}
   action:
     - service: switch.turn_on
       target:
-        entity_id: switch.garage_gates_power
+        entity_id: switch.garage_gates_left_power
     - service: input_datetime.set_datetime
       target:
         entity_id: input_datetime.power_off_garage_gates_at
@@ -136,7 +136,9 @@
   action:
     - service: switch.turn_off
       target:
-        entity_id: switch.garage_gates_power
+        entity_id: 
+          - switch.garage_gates_left_power
+          - switch.garage_gates_right_power
     - if:
         - condition: template
           value_template: |

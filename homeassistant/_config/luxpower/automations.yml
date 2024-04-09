@@ -1,6 +1,5 @@
 - id: battery_charging_type_toggler
-  mode: queued
-  max: 2
+  mode: restart
   alias: Manage Lux battery cheap charging
   trigger:
     - platform: state
@@ -8,8 +7,8 @@
       to: 
         - "on"
         - "off"
-      for: "00:00:05"
   action:
+    - delay: "00:00:15" # debounce to ensure that automation will be properly restarted
     - service: select.select_option
       data: 
         option: "{{ 'Time' if trigger.to_state.state == 'on' else 'Disable' }}"
