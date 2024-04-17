@@ -1,0 +1,60 @@
+auto_purge: false
+auto_repack: false
+db_url: !secret recorder_db_url
+
+include:
+  domains:
+    - light
+    - switch
+    - sensor
+    - binary_sensor
+    - number
+    - select
+    - input_select
+    - input_boolean
+    - input_number
+    - input_datetime
+    - climate
+    - cover
+    - fan
+    - person
+    - time
+  entities:
+    - device_tracker.serhii_phone_shortcut
+    - script.go_sleep
+    - script.open_garage_from_nfc_tag
+    - script.toggle_garage_gate
+    - script.toggle_home_state_from_car
+    - sensor.main_entrance_lock_battery
+
+exclude:
+  entities:
+    - sun.sun
+    - input_datetime.kitchen_fan_turn_off_at
+    - light.cabinet_map_light
+    - number.entrance_room_motion_occupancy_timeout
+    - select.zigbee2mqtt_bridge_log_level
+    - select.zigbee2mqtt_bridge_log_level_2
+    - sensor.hacs
+    - sensor.main_heater_current_power
+    - sensor.rooms_to_clean_today
+  entity_globs:
+    - sensor.sun*
+    - input_boolean.thermostat_driven_heater_valve_*
+    - input_datetime.bathroom_fan_*
+    - light.livingroom_tracking_light_*
+    - select.*_power_on_behavior
+    - select.*_power_outage_memory
+    - select.*_indicator_mode
+    - select.*_switch_type
+    - sensor.*_battery
+    - sensor.fireplace_button_*
+    - sensor.tv_button_*
+    - sensor.*_outside_curtain_moving
+    - sensor.roborock_s7_*
+    - sensor.serhii_stotskyis_iphone_*
+    - sensor.tpms_*
+    - switch.*_motor_reversal
+    - switch.*_calibration
+    - switch.*_do_not_disturb
+    # - input_datetime.disable_hot_floor_pump_at

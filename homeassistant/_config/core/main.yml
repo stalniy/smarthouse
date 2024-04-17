@@ -10,14 +10,22 @@ input_datetime:
     icon: mdi:home-clock
     has_date: true
     has_time: true
+  went_to_bed_at:
+    name: Лягли спати
+    has_date: true
+    has_time: true
+  last_water_heater_2k_state_changed:
+    name: Останні зміни в стані water_heater_2k
+    has_date: true
+    has_time: true
 
 input_text:
   serhii_phone_shortcut:
     name: Сергій вдома?
 
-input_boolean:
-  terace_door_open:
-    name: Двері на терасі
+# input_boolean:
+#   terace_door_open:
+#     name: Двері на терасі
 
 input_select:
   curtain_outside_mode:
@@ -43,18 +51,18 @@ sensor:
       some_time_at_home_passed:
         device_class: timestamp
         value_template: "{{ (states('input_datetime.back_home_at') | as_datetime | as_local) + timedelta(minutes=10) }}"
-  - platform: mqtt_room
-    device_id: "sd:0xfd44"
-    name: Car
-    state_topic: 'espresense/devices/sd:0xfd44'
-    timeout: 10
-    away_timeout: 10
-  - platform: mqtt_room
-    device_id: "iphone_serhii"
-    name: serhii_iphone_room
-    state_topic: 'espresense/devices/iphone_serhii'
-    timeout: 10
-    away_timeout: 10
+  # - platform: mqtt_room
+  #   device_id: "sd:0xfd44"
+  #   name: Car
+  #   state_topic: 'espresense/devices/sd:0xfd44'
+  #   timeout: 10
+  #   away_timeout: 10
+  # - platform: mqtt_room
+  #   device_id: "iphone_serhii"
+  #   name: serhii_iphone_room
+  #   state_topic: 'espresense/devices/iphone_serhii'
+  #   timeout: 10
+  #   away_timeout: 10
 
 template:
   - binary_sensor:  
@@ -110,7 +118,25 @@ template:
           entity_id: |
             {% from 'house_covers.jinja' import covers_not_in %}
             {{ covers_not_in(option, 'closed') | from_json | list }}
-
+  - trigger:
+    - platform: state
+      entity_id: input_datetime.went_to_bed_at
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+    - platform: event
+      event_type: my_event_template_reloaded
+    binary_sensor:
+      name: is_sleeping
+      state: |
+        {% set slept_at = as_datetime(states('input_datetime.went_to_bed_at')) %}
+        {% set current_time = now() %}
+        {% if slept_at.day == current_time.day and slept_at.hour < 7 %}
+          {{ current_time.hour < 7 }}
+        {% else %}
+          {% set tomorrow_morning = as_local(slept_at + timedelta(days=1)).replace(hour=7, minute=0, second=0) %}
+          {{ current_time < tomorrow_morning }}
+        {% endif %}
 
 command_line:
   - switch:

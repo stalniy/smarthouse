@@ -339,7 +339,7 @@
       entity_id: binary_sensor.hot_floor_pump_required
       to: 'off'
       variables:
-        delay_turn_off: "{{ now() + timedelta(hours=1) }}"
+        delay_turn_off: "{{ now() + timedelta(minutes=30) }}"
         pump_state: "{{ states('binary_sensor.is_hot_floor_valves_open') }}"
     - platform: time
       at: input_datetime.disable_hot_floor_pump_at

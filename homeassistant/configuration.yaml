@@ -91,12 +91,7 @@ lovelace:
     - url: /hacsfiles/lovelace-multiple-entity-row/multiple-entity-row.js
       type: module
 
-recorder:
-  auto_purge: false
-  auto_repack: false
-  db_url: !secret recorder_db_url
-  # include:
-  #   entities:
+recorder: !include _config/core/recorder.yml
 
 websocket:
   - url: !secret signal_ws_url

@@ -179,7 +179,8 @@ template:
           is_state('binary_sensor.is_hot_floor_valves_open', 'on') and (
             float(states('sensor.fireplace_fan_power'), 0) > 0 or
             is_state('input_boolean.heating_enabled', 'on') or
-            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000
+            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000 and
+            as_datetime(states('sensor.solcast_pv_forecast_api_last_polled')).hour == now().hour
           )
         }}
     - name: requires_heating_in_house
@@ -245,30 +246,37 @@ template:
       event: start
     - platform: state
       entity_id: 
-        - sensor.solcast_pv_forecast_forecast_this_hour
         - binary_sensor.is_cheap_grid_energy_period
         - binary_sensor.inverter_connected_to_grid
-        - sensor.lux_grid_flow_live
+        - sensor.lux_battery
+        - sensor.lux_battery_discharge_live
+        - binary_sensor.boiler_requires_reheating
+        - sensor.solcast_pv_forecast_forecast_remaining_today
+        - binary_sensor.lux_has_solar_output_live
     - platform: time_pattern
       hours: "*"
       minutes: 0
     binary_sensor:
     - name: boiler_heating_required
       state: >-
-        {{
-          is_state('binary_sensor.boiler_requires_reheating', 'on') or
-          (
-            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) >= 1000 and
-            5 <= now().hour <= 19 and
-            (
-              float(states('sensor.lux_battery_discharge_live'), 0) == 0 or 
-              float(states('sensor.lux_battery_discharge_live'), 0) < 500 and float(states('sensor.lux_battery'), 0) > 50 or
-              float(states('sensor.lux_battery'), 0) > 40
-            ) 
-          ) or
-          4 <= now().hour < 7 and is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
-          (float(states('sensor.lux_grid_flow_live'), 0) > 0 or is_state('binary_sensor.inverter_connected_to_grid', 'on'))
-        }}
+        {% set used_battery_capacity = 4.8 * (100 - float(states('sensor.lux_battery'), 0)) /100 %}
+        {% set can_heat_during_day = is_state('binary_sensor.lux_has_solar_output_live', 'on') and (
+            0.8 * float(states('sensor.solcast_pv_forecast_forecast_remaining_today'), 0) > used_battery_capacity and
+            as_datetime(states('sensor.solcast_pv_forecast_api_last_polled')).timestamp() > int(state_attr('input_datetime.last_water_heater_2k_state_changed', 'timestamp')) and
+            float(states('sensor.lux_battery'), 0) > 40
+          )
+        %}
+        {% set can_heat_during_night = 4 <= now().hour < 7 and 
+            is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and
+            is_state('binary_sensor.inverter_connected_to_grid', 'on') and
+            not is_state('sensor.lux_ac_charge_battery_level_to', '0')
+        %}
+        {% set can_reheat = is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
+            is_state('binary_sensor.boiler_requires_reheating', 'on') and
+            is_state('binary_sensor.ebusd_signal', 'on')
+        %}
+
+        {{ can_reheat or can_heat_during_day or can_heat_during_night }}
   - trigger:
     - platform: event
       event_type: my_event_template_reloaded

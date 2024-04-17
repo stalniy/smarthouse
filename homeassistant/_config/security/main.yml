@@ -5,11 +5,36 @@ automation:
       - platform: state
         entity_id: 
           - binary_sensor.kitchen_motion
-        to: 'on'
     condition:
       - condition: template
-        value_template: "{{ states('group.residents') == 'not_home' }}"
+        value_template: "{{ states('group.residents') != 'home' and trigger.to_state.state != 'off' }}"
     action:
       - event: important_home_event
         event_data:
-          message: Рух в будинку, коли нікого нема !!!
+          message: ❗❗❗Рух в будинку, коли нікого нема
+
+  - id: notify_about_open_back_door_when_not_home
+    alias: Повідомити про відкриті двері коли не вдома
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.terrace_door_open_contact
+    condition:
+      - condition: template
+        value_template: "{{ states('group.residents') != 'home' and trigger.to_state.state != 'on' }}"
+    action:
+      - event: important_home_event
+        event_data:
+          message: ❗❗❗Відкрита тераса, коли нікого нема
+
+  - id: notify_about_open_door_lock_when_not_home
+    alias: Повідомити про відкритий замок коли не в дома
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.is_main_door_unlocked
+    condition:
+      - condition: template
+        value_template: "{{ states('group.residents') != 'home' and trigger.to_state.state != 'off' }}"
+    action:
+      - event: important_home_event
+        event_data:
+          message: ❗❗❗Відкритий дверний замок, коли нікого нема

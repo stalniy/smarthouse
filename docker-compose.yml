@@ -2,7 +2,7 @@ version: '3'
 services:
   homeassistant:
     container_name: homeassistant
-    image: "ghcr.io/home-assistant/home-assistant:2023.12"
+    image: "ghcr.io/home-assistant/home-assistant:2024.3"
     volumes:
       - /home/homeman/smarthome/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
@@ -12,6 +12,23 @@ services:
     network_mode: host
     devices:
       - /dev/snd:/dev/snd
+
+  esphome:
+    container_name: esphome
+    image: "ghcr.io/esphome/esphome:2024.3.2"
+    volumes:
+      - /home/homeman/smarthome/esphome/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - USERNAME=${ESPHOME_USER}
+      - PASSWORD=${ESPHOME_PASSWORD}
+      - PIP_CACHE_DIR=.pip
+      - PLATFORMIO_CORE_DIR=.plattformio
+      - PLATFORMIO_GLOBALLIB_DIR=.plattformioLibs
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
 
   zb2mqtt-house: 
     container_name: zb2mqtt-house

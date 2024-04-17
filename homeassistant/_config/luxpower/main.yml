@@ -49,7 +49,7 @@ template:
         {% set current_capacity = full_capacity * float(states('sensor.lux_battery'), 0) / 100 %}
 
         {{ 
-          0 if current_capacity >= expected_capacity else (expected_capacity - current_capacity) / charge_power 
+          0 if current_capacity >= expected_capacity or charge_power == 0 else (expected_capacity - current_capacity) / charge_power 
         }}
     - name: lux_duration_to_discharge_battery
       state_class: measurement

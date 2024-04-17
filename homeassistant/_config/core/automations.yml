@@ -36,14 +36,14 @@
         dev_id: serhii_phone_shortcut
         location_name: "{{ states('input_text.serhii_phone_shortcut') }}"
 
-- id: sync_terace_door_open
-  trigger:
-    - platform: state
-      entity_id: sensor.terrace_door_sensor
-  action:
-    - service_template: "input_boolean.turn_{{ 'on' if trigger.to_state.state == 'False' else 'off' }}"
-      target:
-        entity_id: input_boolean.terace_door_open
+# - id: sync_terace_door_open
+#   trigger:
+#     - platform: state
+#       entity_id: sensor.terrace_door_sensor
+#   action:
+#     - service_template: "input_boolean.turn_{{ 'on' if trigger.to_state.state == 'False' else 'off' }}"
+#       target:
+#         entity_id: input_boolean.terace_door_open
 
 - id: disable_light_on_leave
   trigger:
@@ -335,3 +335,15 @@
 #         | list 
 #         | count
 #       }}
+
+- id: keep_last_changed_at_for_water_heater_2k
+  trigger:
+    platform: state
+    entity_id: switch.water_heater_2k
+    to: ['on', 'off']
+  action:
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_water_heater_2k_state_changed
+      data:
+        datetime: "{{ now() }}"

@@ -74,6 +74,9 @@ template:
   - trigger:
     - platform: time_pattern
       hours: "*"
+      minutes: 0
+    - platform: time_pattern
+      hours: "*"
       minutes: 55
     - platform: event
       event_type: my_event_template_reloaded

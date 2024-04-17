@@ -83,12 +83,11 @@ async def async_setup(hass: HomeAssistant, config: Config):
   async def connect_to_websockets(event):
     tasks = [asyncio.create_task(proxy_websocket_events(item_config)) for item_config in config[DOMAIN]]
     
-    @callback
-    def disconnect():
+    async def disconnect(event):
       for task in tasks:
         task.cancel()
     
-    hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, disconnect)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, disconnect)
 
   hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, connect_to_websockets)
 

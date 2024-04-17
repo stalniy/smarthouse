@@ -29,3 +29,8 @@ go_sleep:
   description: routine to run when go to sleep
   sequence:
     - event: sleeping_time_start
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.went_to_bed_at
+      data:
+        datetime: "{{ now() }}"
