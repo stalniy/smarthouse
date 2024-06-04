@@ -36,18 +36,18 @@ notify:
 
 device_tracker: 
 
-panel_iframe:
-  zbhouse:
-    title: House ZB
-    url: http://192.168.32.10:9123/
-    icon: mdi:home-automation
-    require_admin: true
+# panel_iframe:
+#   zbhouse:
+#     title: House ZB
+#     url: http://192.168.32.10:9123/
+#     icon: mdi:home-automation
+#     require_admin: true
 
-  zbgarage:
-    title: Garage ZB
-    url: http://192.168.32.10:9124/
-    icon: mdi:home-automation
-    require_admin: true
+#   zbgarage:
+#     title: Garage ZB
+#     url: http://192.168.32.10:9124/
+#     icon: mdi:home-automation
+#     require_admin: true
 
 ebusd:
   host: '192.168.32.10'
@@ -74,6 +74,7 @@ homeassistant:
     security: !include _config/security/main.yml
     doghouse: !include _config/doghouse/main.yml
     camera: !include _config/camera/main.yml
+    irrigation: !include _config/irrigation/main.yml
 
 python_script:
 ffmpeg:

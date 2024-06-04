@@ -1,11 +1,13 @@
 secrets.yaml
 secrets.yml
 /hass_components
+/homeassistant/tts
 /homeassistant/custom_components/hacs
 /homeassistant/custom_components/luxpower
 /homeassistant/custom_components/tpms_ble
-/homeassistant/custom_components/solcast_solar
+/homeassistant/custom_components/irrigation_unlimited
 /signal-cli
+/piper-data/
 .storage
 
 __pycache__

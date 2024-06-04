@@ -116,37 +116,6 @@
             ] %}
           {% endif %}
           {{ entity_ids | list  }}
-          
-- id: is_it_me_back_home
-  alias: Перевірка чи це я повернувся додому?
-  trigger:
-    - platform: event
-      event_type: dahua_event_received
-      event_data:
-        action: Start
-        Code: CrossRegionDetection
-        data: 
-          Direction: Enter
-          Object:
-            ObjectType: Vehicle
-          Name: garage_car_arrived
-    - platform: event
-      event_type: dahua_event_received
-      event_data:
-        action: Start
-        Code: CrossLineDetection
-        data: 
-          Direction: RightToLeft
-          Object:
-            ObjectType: Human
-          Name: yard_gates
-  condition:
-    - condition: template
-      value_template: "{{ is_state('group.residents', 'not_home') }}"
-  action:
-    - event: important_home_event
-      event_data:
-        message: "Повернувся додому?"
 
 - id: solcast_forecast_sync
   alias: Solcast_update
@@ -158,19 +127,28 @@
       event: sunset
     - platform: time
       at: 
-        - '10:00'
-        - '11:00'
-        - '12:00'
-        - '14:00'
-        - '15:00'
-        - '16:00'
-        - '17:00'
-        - '18:00'
+        - '10:00:00'
+        - '11:00:00'
+        - '13:00:00'
+        - '15:00:00'
+        - '16:00:00'
+        - '17:00:00'
+        - '18:00:00'
   condition:
-  - condition: sun
-    before: sunset
-    after: sunrise
+  - condition: and
+    conditions:
+      - condition: sun
+        before: sunset
+        after: sunrise
+      - condition: template
+        value_template: |
+          {% set limit = float(states('sensor.solcast_pv_forecast_api_limit'), 0) %}
+          {{ float(states('sensor.solcast_pv_forecast_api_used'), 0) < limit }}
+  
   action:
+  - delay: 
+      minutes: "{{ range(0, 15)|random|int }}"
+      seconds: "{{ range(0, 59)|random|int }}"
   - service: solcast_solar.update_forecasts
     data: {}
   mode: single
@@ -336,14 +314,14 @@
 #         | count
 #       }}
 
-- id: keep_last_changed_at_for_water_heater_2k
+- id: keep_last_turned_off_at_for_water_heater_2k
   trigger:
     platform: state
     entity_id: switch.water_heater_2k
-    to: ['on', 'off']
+    to: 'off'
   action:
     - service: input_datetime.set_datetime
       target:
-        entity_id: input_datetime.last_water_heater_2k_state_changed
+        entity_id: input_datetime.last_water_heater_2k_turned_off_at
       data:
         datetime: "{{ now() }}"

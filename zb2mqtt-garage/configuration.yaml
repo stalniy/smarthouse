@@ -10,16 +10,8 @@ advanced:
   legacy_api: false
   legacy_availability_payload: false
 devices:
-  '0xa4c1385bc5eff6a7':
-    friendly_name: garage_gates_bot_right
-  '0xa4c13819b8e35f59':
-    friendly_name: garage_gates_bot_left
   '0xdc8e95fffe11b7d6':
     friendly_name: garage_light_outside
-  '0x00124b002a65b1bd':
-    friendly_name: garage_gates_left_open
-  '0x00124b002a50f12b':
-    friendly_name: garage_gates_right_open
   '0x187a3efffe006b28':
     friendly_name: power_consumption
   '0xdc8e95fffe19a5e2':
@@ -31,7 +23,22 @@ devices:
   '0x842712fffe513420':
     friendly_name: garage_yard_light
   '0xa4c138e02b828b6b':
-    friendly_name: garage_gates_power
-    voltage_precision: ''
+    friendly_name: garage_gates_left_power
+  '0xa4c138a744aed5f3':
+    friendly_name: garage_gates_left
+  '0xa4c138af0ff1fd8a':
+    friendly_name: garage_gates_right_power
+  '0xdc8e95fffe1e2e26':
+    friendly_name: watering_bed
+  '0x385b44fffe1438a1':
+    friendly_name: watering_near_garage
+  '0xdc8e95fffe19a5eb':
+    friendly_name: watering_bed2
+  '0x385b44fffe1b2520':
+    friendly_name: watering_back_yard
+  '0x54ef441000abac9a':
+    friendly_name: garage_gates_right
+  '0xa4c138d8fe2c2eb5':
+    friendly_name: garage_front_center
 device_options:
   legacy: false

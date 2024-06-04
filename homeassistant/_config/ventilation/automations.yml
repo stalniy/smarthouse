@@ -18,7 +18,7 @@
         fan_turn_off_at: |
           {% if schedule_fan_state == 'off' and is_state('switch.bathroom_fan', 'on') %}
             {% set delta = timedelta(hours=1) if is_state('binary_sensor.bathroom_humidity_high', 'on') else timedelta(minutes=5) %}
-            {{ now() + delta }}
+            {{ now() if is_state('binary_sensor.is_sleeping', 'on') and is_state('binary_sensor.bathroom_humidity_high', 'off') else now() + delta }}
           {% else %}
             {{ 0 | as_datetime }}
           {% endif %}

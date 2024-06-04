@@ -66,6 +66,7 @@ template:
         {% else %}
           0
         {% endif %}
+
   - binary_sensor:
     - name: lux_requires_ac_charging
       state: |
@@ -111,20 +112,12 @@ template:
               (now() + timedelta(hours=hours_to_charge)) >= today_at('6:30')
             }}
           {% endif %}
-  - trigger:
-    - platform: state
-      entity_id:
-        - sensor.solcast_pv_forecast_forecast_tomorrow
-        - sensor.solcast_pv_forecast_forecast_today
-    - platform: time_pattern
-      hours: "*"
-      minutes: 0
-    sensor:
+  - sensor:
     - name: lux_ac_charge_battery_level_to
       unit_of_measurement: "%"
       state_class: measurement
       state: | 
-        {% set power_forecast = float(states('sensor.solcast_pv_forecast_forecast_tomorrow') if now().hour >= 7 else states('sensor.solcast_pv_forecast_forecast_today'), 0) %}
+        {% set power_forecast = float(states('sensor.solar_forecast'), 0) %}
         {% if power_forecast <= 5 %}
           100
         {% elif power_forecast <= 10 %}
@@ -135,5 +128,38 @@ template:
           0
         {% endif %}
 
+  - trigger:
+    - platform: time_pattern
+      minutes: "/15"
+    - platform: time_pattern
+      hours: "*"
+      minutes: 1
+    - platform: numeric_state 
+      entity_id: sensor.lux_battery
+      below: 60
+    - platform: numeric_state 
+      entity_id: sensor.lux_battery
+      below: 40
+    - platform: numeric_state 
+      entity_id: sensor.lux_battery
+      below: 20
+    binary_sensor:
+      - name: lux_at_min_battery_level
+        state: |
+          {% set min_level = 10 %}
+          {% if 4 <= now().month < 10 %}
+            {% set min_level = 20 if 8 <= now().hour <= 14 else 40 %}
+          {% else %}
+            {% set min_level = 40 if 9 <= now().hour <= 12 else 60 %}
+          {% endif %}
+          
+          {{ float(states('sensor.lux_battery'), 0) <= min_level }}
     
-  
+  - button:
+    - unique_id: reconnect_to_luxpower
+      name: Reconnect to Luxpower
+      icon: mdi:connection
+      press:
+        service: luxpower.luxpower_reconnect
+        data:
+          dongle: "{{ state_attr('sensor.lux_data_received_time', 'dongle') }}"  

@@ -1,19 +1,24 @@
 template:
   - binary_sensor:
+    - name: outside_light_needed
+      state: |
+        {{
+          is_state('group.residents', 'home') and
+          is_state('binary_sensor.is_dark', 'on') and
+          is_state('binary_sensor.is_sleeping', 'off') and 
+          is_state('binary_sensor.is_main_door_unlocked', 'on')
+        }}
     - name: main_entrance_outside_light_needed
       state: |
         {{ 
-          is_state('group.residents', 'home') and
-          is_state('binary_sensor.is_dark', 'on') and (
-            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') or
-            is_state('binary_sensor.camera_between_house_and_garage_smart_motion_human', 'on')
+          is_state('binary_sensor.outside_light_needed', 'on') and (
+            is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') 
           )
         }}
     - name: garage_front_outside_light_needed
       state: |
         {{ 
-          is_state('group.residents', 'home') and
-          is_state('binary_sensor.is_dark', 'on') and (
+          is_state('binary_sensor.outside_light_needed', 'on') and (
             is_state('binary_sensor.camera_garage_gates_smart_motion_human', 'on') or
             is_state('binary_sensor.camera_garage_gates_smart_motion_vehicle', 'on') 
           )
@@ -21,8 +26,7 @@ template:
     - name: garage_back_outside_light_needed
       state: |
         {{
-          is_state('group.residents', 'home') and
-          is_state('binary_sensor.is_dark', 'on') and 
+          is_state('binary_sensor.outside_light_needed', 'on') and 
           is_state('binary_sensor.camera_garage_back_smart_motion_human', 'on')
         }}
 

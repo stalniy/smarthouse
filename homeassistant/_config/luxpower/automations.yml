@@ -8,13 +8,25 @@
       to: 
         - "on"
         - "off"
+    - platform: state
+      entity_id: sensor.lux_battery
+  variables:
+    charge_type: |
+      {{ 'Time' if is_state('binary_sensor.is_cheap_grid_energy_period', 'on') else 'Disable' }}
+  condition:
+    - condition: template
+      value_template: "{{ float(states('sensor.lux_battery'), 1) <= float(states('number.lux_ac_battery_charge_level', 0)) }}"
   action:
-    # - delay: "00:00:15" # debounce to ensure that automation will be properly restarted
-    - service: select.select_option
-      data: 
-        option: "{{ 'Time' if trigger.to_state.state == 'on' else 'Disable' }}"
-      target:
-        entity_id: select.lux_ac_charge_type
+    - if: 
+      - condition: template
+        value_template: "{{ charge_type != states('select.lux_ac_charge_type') }}"
+      then:
+      - delay: "00:00:05" # debounce to ensure that automation will be properly restarted
+      - service: select.select_option
+        data: 
+          option: "{{ charge_type }}"
+        target:
+          entity_id: select.lux_ac_charge_type
     # - if:
     #   - condition: template
     #     value_template: "{{ trigger.to_state.state == 'off' and trigger.from_state.state == 'on' }}"
@@ -29,8 +41,6 @@
   alias: Set lux AC charge battery level
   trigger:
     - platform: state
-      entity_id: sensor.lux_ac_charge_battery_level_to
-    - platform: state
       entity_id: binary_sensor.is_cheap_grid_energy_period
       to: 'on'
     # - platform: homeassistant
@@ -40,7 +50,18 @@
       target:
         entity_id: number.lux_ac_battery_charge_level
       data:
-        value: "{{ float(states('sensor.lux_ac_charge_battery_level_to'), 50) }}"
+        value: |
+          {% set power_forecast = float(states('sensor.solcast_pv_forecast_forecast_tomorrow'), 12) %}
+          {% if power_forecast <= 5 %}
+            100
+          {% elif power_forecast <= 10 %}
+            70
+          {% elif power_forecast <= 15 %}
+            40
+          {% else %}
+            0
+          {% endif %}
+
 
 # - id: force_ac_first_in_cheap_grid_period_after_battery_charged
 #   mode: restart

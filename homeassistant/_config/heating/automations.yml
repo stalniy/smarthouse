@@ -10,6 +10,10 @@
         - input_number.main_heater_storage_temp_desired 
         - input_select.heating_mode
         - input_select.heating_preset
+  condition:
+    - condition: state
+      entity_id: binary_sensor.ebusd_signal
+      state: 'on'
   action:
     - service: python_script.heating_ebus_sync
   mode: restart
@@ -307,22 +311,68 @@
 - id: control_hwc
   alias: Керування бойлером
   trigger:
-    platform: state
-    entity_id: binary_sensor.boiler_heating_required
-    to: 
-      - 'on'
-      - 'off'
+    - platform: state
+      entity_id: 
+        - binary_sensor.is_cheap_grid_energy_period
+        - binary_sensor.inverter_connected_to_grid
+        - binary_sensor.boiler_requires_reheating
+        - binary_sensor.lux_has_solar_output_live
+        - binary_sensor.ebusd_signal
+        - binary_sensor.lux_covers_water_heater_2k
+        - sensor.lux_battery
+        - sensor.solcast_pv_forecast_forecast_remaining_today
+        - sensor.solcast_pv_forecast_api_last_polled
+        # - sensor.solar_forecast
+        - input_datetime.last_water_heater_2k_turned_off_at
+    - platform: time_pattern
+      hours: "*"
+      minutes: 1
+    - platform: time_pattern
+      hours: "*"
+      minutes: 5
+  variables:
+    boiler_heating_required: >-
+      {% set used_battery_capacity = 4.8 * (100 - float(states('sensor.lux_battery'), 0)) /100 %}
+      {% set can_heat_during_day = is_state('binary_sensor.lux_has_solar_output_live', 'on') and 
+          (
+              0.7 * float(states('sensor.solcast_pv_forecast_forecast_remaining_today'), 0) > used_battery_capacity and 
+              now().hour < 18 and 
+              is_state('binary_sensor.lux_at_min_battery_level', 'off')
+            or
+              is_state('switch.water_heater_2k', 'on') and 
+              is_state('binary_sensor.lux_covers_water_heater_2k', 'on')
+          ) and
+          now().timestamp() - state_attr('input_datetime.last_water_heater_2k_turned_off_at', 'timestamp') >= 900
+      %}
+      {% set can_heat_during_night = 3 <= now().hour < 7 and 
+          is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and (
+            is_state('binary_sensor.inverter_connected_to_grid', 'on') and
+            float(states('sensor.solar_forecast'), 0) < 15 or
+            is_state('binary_sensor.boiler_requires_reheating', 'on') and
+            is_state('binary_sensor.ebusd_signal', 'on')
+          )
+      %}
+
+      {{ 'on' if can_heat_during_day or can_heat_during_night else 'off' }}
+  condition:
+    - condition: template
+      value_template: |
+        {{ is_state('binary_sensor.boiler_requires_reheating', 'on') or states('switch.water_heater_2k') != boiler_heating_required }}
   action:
     - if:
         - condition: template
-          value_template: "{{ is_state('binary_sensor.boiler_requires_reheating', 'on') }}"
+          value_template: |
+            {{ 
+              is_state('binary_sensor.boiler_requires_reheating', 'on') and is_state('binary_sensor.ebusd_signal', 'on') or
+              is_state('input_boolean.hwc_enabled', 'on') and boiler_heating_required == 'off'
+            }}
       then:
-        - service_template: "input_boolean.turn_{{ trigger.to_state.state }}"
+        - service_template: "input_boolean.turn_{{ boiler_heating_required }}"
           target:
             entity_id: input_boolean.hwc_enabled
       else:
         - alias: Ввімкнути/Вимкнути бойлер
-          service_template: "switch.turn_{{ trigger.to_state.state }}"
+          service_template: "switch.turn_{{ boiler_heating_required }}"
           entity_id: switch.water_heater_2k
   mode: restart
 

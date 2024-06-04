@@ -100,7 +100,7 @@ input_boolean:
   hwc_enabled: 
     name: Включити ГВС
 
-  # because I have NO heating valves, I need thermostat to somewhere store its desired state
+  # because I have NormalOpen heating valves, I need thermostat to somewhere store its desired state
   # so then I can understand whether heating is required or not based on `hvac_action` attribute
   # and be able to optimize electisity usage by opening valves when heater doesn't heat
   thermostat_driven_heater_valve_master_bedroom:
@@ -173,16 +173,6 @@ template:
           states('switch.heater_valve_kid_big_bedroom'),
           states('switch.heater_valve_livingroom'),
         ] | select('eq', 'off') | first) == 'off' }}
-    - name: hot_floor_pump_required
-      state: |
-        {{
-          is_state('binary_sensor.is_hot_floor_valves_open', 'on') and (
-            float(states('sensor.fireplace_fan_power'), 0) > 0 or
-            is_state('input_boolean.heating_enabled', 'on') or
-            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000 and
-            as_datetime(states('sensor.solcast_pv_forecast_api_last_polled')).hour == now().hour
-          )
-        }}
     - name: requires_heating_in_house
       state: |
         {{
@@ -205,7 +195,9 @@ template:
             | list 
             | count) == (thermostats_heating | count)
         }}
-    
+    - name: fireplace_heating_enabled
+      state: "{{ float(states('sensor.fireplace_fan_power'), 0) > 0 }}"  
+
   - trigger:
     - platform: time_pattern
       minutes: "/1"
@@ -246,47 +238,9 @@ template:
       event: start
     - platform: state
       entity_id: 
-        - binary_sensor.is_cheap_grid_energy_period
-        - binary_sensor.inverter_connected_to_grid
-        - sensor.lux_battery
-        - sensor.lux_battery_discharge_live
-        - binary_sensor.boiler_requires_reheating
-        - sensor.solcast_pv_forecast_forecast_remaining_today
-        - binary_sensor.lux_has_solar_output_live
-    - platform: time_pattern
-      hours: "*"
-      minutes: 0
-    binary_sensor:
-    - name: boiler_heating_required
-      state: >-
-        {% set used_battery_capacity = 4.8 * (100 - float(states('sensor.lux_battery'), 0)) /100 %}
-        {% set can_heat_during_day = is_state('binary_sensor.lux_has_solar_output_live', 'on') and (
-            0.8 * float(states('sensor.solcast_pv_forecast_forecast_remaining_today'), 0) > used_battery_capacity and
-            as_datetime(states('sensor.solcast_pv_forecast_api_last_polled')).timestamp() > int(state_attr('input_datetime.last_water_heater_2k_state_changed', 'timestamp')) and
-            float(states('sensor.lux_battery'), 0) > 40
-          )
-        %}
-        {% set can_heat_during_night = 4 <= now().hour < 7 and 
-            is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and
-            is_state('binary_sensor.inverter_connected_to_grid', 'on') and
-            not is_state('sensor.lux_ac_charge_battery_level_to', '0')
-        %}
-        {% set can_reheat = is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and 
-            is_state('binary_sensor.boiler_requires_reheating', 'on') and
-            is_state('binary_sensor.ebusd_signal', 'on')
-        %}
-
-        {{ can_reheat or can_heat_during_day or can_heat_during_night }}
-  - trigger:
-    - platform: event
-      event_type: my_event_template_reloaded
-    - platform: homeassistant
-      event: start
-    - platform: state
-      entity_id: 
         - light.kid_bathroom
         - light.master_bathroom
-        - binary_sensor.kitchen_table_presence
+        - binary_sensor.kitchen_motion_occupancy
       to:
         - 'on'
         - 'off'
@@ -294,7 +248,8 @@ template:
       at: 
         - "06:00:00"
         - "07:00:00"
-        - input_datetime.back_home_at
+    - platform: time
+      at: input_datetime.back_home_at
     - platform: event
       event_type: timer.finished
       event_data:
@@ -313,7 +268,7 @@ template:
         {{
           states.light.kid_bathroom.state == 'on' or
           states.light.master_bathroom.state == 'on' or
-          states.binary_sensor.kitchen_table_presence.state == 'on' or
+          states.binary_sensor.kitchen_motion_occupancy.state == 'on' or
           trigger.platform == 'time'
         }}
   - trigger:
@@ -342,6 +297,61 @@ template:
         {% else %}
           home
         {% endif %}
+  - trigger:
+    - platform: state
+      entity_id: 
+        - binary_sensor.is_hot_floor_valves_open
+        - binary_sensor.fireplace_heating_enabled
+        - input_boolean.heating_enabled
+        - sensor.solcast_pv_forecast_forecast_this_hour
+    - platform: time_pattern
+      minutes: "/15"
+    - platform: event
+      event_type: event_template_reloaded
+    binary_sensor:
+    - name: hot_floor_pump_required
+      state: |
+        {{
+          is_state('binary_sensor.is_hot_floor_valves_open', 'on') and (
+            is_state('binary_sensor.fireplace_heating_enabled', 'on') or
+            is_state('input_boolean.heating_enabled', 'on') or
+            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000 and 10 <= now().hour < 18
+          )
+        }}
+  - trigger:
+    - platform: time_pattern
+      hours: 7
+      minutes: 0
+    - platform: time_pattern
+      hours: 12
+      minutes: 0
+    - platform: time_pattern
+      hours: 18
+      minutes: 0
+    - platform: numeric_state
+      entity_id: sensor.lux_grid_flow_live
+      above: 100
+      for: "00:01:00"
+    - platform: numeric_state
+      entity_id: sensor.lux_battery_discharge_live
+      above: 500
+    - platform: state
+      entity_id: sensor.lux_at_min_battery_level
+    binary_sensor:
+    - name: lux_covers_water_heater_2k
+      state: |
+        {% set grid_power_live = float(states('sensor.lux_power_from_grid_live'), 0)  %}
+        {% set current_month = now().month %}
+        
+        {% if 4 <= current_month < 10 %}
+          {{ grid_power_live == 0 and is_state('binary_sensor.lux_at_min_battery_level', 'off') }}
+        {% elif 10 <= current_month <= 11 %}
+          {{ grid_power_live <= 800 }}
+        {% else %}
+          {{ grid_power_live <= 1500 }}
+        {% endif %}
+ 
+
 sensor:
   - platform: integration
     source: sensor.main_heater_current_power_live

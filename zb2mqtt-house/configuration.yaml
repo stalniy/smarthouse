@@ -8,16 +8,12 @@ devices:
     friendly_name: master_bathroom
   '0xdc8e95fffe19bbe0':
     friendly_name: master_bathroom_towel_dryer
-  '0xdc8e95fffe1e2e26':
-    friendly_name: hot_water_pump
   '0x30fb10fffe76ff44':
     friendly_name: master_bedroom_climate
   '0xdc8e95fffe19bdaf':
     friendly_name: house_outside
   '0xa4c138757bd27eb8':
     friendly_name: kitchen_light
-  '0x00124b002919ab73':
-    friendly_name: kitchen_motion
   '0x60b647fffe5335e2':
     friendly_name: bathroom_fan
   '0xe0798dfffecc938a':
@@ -61,10 +57,6 @@ devices:
   '0xa4c1389dd3983dd2':
     friendly_name: livingroom_outside_curtain_1
     invert_cover: false
-  '0x00124b0022ed0b7f':
-    friendly_name: cabinet_map_light
-    availability:
-      timeout: 10
   '0xa4c13894f4dbe43b':
     friendly_name: livingroom_outside_curtain_2
   '0xa4c1387abb3d7da0':
@@ -77,8 +69,6 @@ devices:
     friendly_name: master_bathroom_button
   '0xa4c138700aa8a343':
     friendly_name: cameras_outside_power
-  '0xdc8e95fffe19a5eb':
-    friendly_name: curtain_outside_power
   '0xa4c1387555bb5cde':
     friendly_name: terrace_outside_curtain
   '0xa4c1386338cbc1c5':
@@ -108,10 +98,8 @@ devices:
     transition: 1
   '0xa4c1385c65126c30':
     friendly_name: livingroom_tracking_light_23
-  '0x385b44fffe1b2520':
-    friendly_name: kid_bathroom_towel_dryer
   '0xe0798dfffecc8576':
-    friendly_name: entrance_room_climate
+    friendly_name: kid_small_bedroom_climate
   '0xf4b3b1fffe9910ff':
     friendly_name: kitchen_climate
   '0xa4c138e02b828b6b':
@@ -136,9 +124,26 @@ devices:
   '0xa4c138b6e99fbf5f':
     friendly_name: livingroom_tv
   '0x001788010916b368':
-    friendly_name: '0x001788010916b368'
+    friendly_name: entrance_room_motion
   '0xa4c138a24835333a':
     friendly_name: kid_bathroom
+    state_action: false
+  '0xa4c13839d09f599d':
+    friendly_name: curtain_outside_power
+  '0xa4c1385f3fdd900f':
+    friendly_name: '0xa4c1385f3fdd900f'
+  '0x00124b002a65b1bd':
+    friendly_name: terrace_door_open
+  '0xa4c138cc44e30809':
+    friendly_name: hot_water_pump
+  '0xa4c138a282e05367':
+    friendly_name: cabinet_map_light
+  '0x0ceff6fffe1a2c75':
+    friendly_name: kitchen_additional_light
+  '0x00124b002919ab73':
+    friendly_name: kitchen_motion
+  '0x70b3d52b60069ed9':
+    friendly_name: kid_bathroom_towel_dryer
 advanced:
   pan_id: 6754
   log_level: warn

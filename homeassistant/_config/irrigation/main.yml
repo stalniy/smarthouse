@@ -1,0 +1,217 @@
+# input_select: 
+#   current_watering_enabled_switch_id:
+#     name: Entity name of current watering enabled switch
+#     options:
+#       - switch.watering_near_garage
+#       - switch.watering_bed
+#       - switch.watering_bed2
+#       - switch.watering_back_yard
+
+# input_datetime:
+#   finish_current_watering_at:
+#     name: Turn off current watering time
+#     has_date: true
+#     has_time: true
+
+# automation:
+#   - id: reset_current_watering_switch
+#     trigger:
+#       - platform: time
+#         at: input_datetime.finish_current_watering_at
+#         variables:
+#           current_watering_enabled_switch_id: "{{ states('input_text.current_watering_enabled_switch_id') }}"
+#     action:
+#       - delay: "00:00:10" # wait for other automation to change current watering 
+#       - if:
+#         - alias: Current watering switch entity id didn't change
+#           condition: template
+#           value_template: "{{ current_watering_enabled_switch_id == states('input_text.current_watering_enabled_switch_id') }}"
+#         then:
+#         - service: input_text.set_value
+#           data:
+#             value: ""
+#           target:
+#             entity_id: input_text.current_watering_enabled_switch_id
+#         - service: input_datetime.set_datetime
+#           data:
+#             datetime: "{{ as_datetime(0) }}"
+#           target:
+#             entity_id: input_datetime.finish_current_watering_at
+
+#   - id: watering_yard
+#     alias: Watering yard
+#     trigger:
+#       - platform: sun
+#         event: sunrise
+#         offset: "-00:15:00"
+#       - platform: sun
+#         event: sunset
+#         offset: "-00:20:00"
+#     variables:
+#       zones_config: 
+#         switch.watering_near_garage:
+#           enabled: "{{ now().strformat('%a') in ['Mon', 'Wed', 'Fri', 'Sun'] }}"
+#           duration: "00:15"
+#         switch.watering_bed:
+#           enabled: false
+#         switch.watering_bed2:
+#           enabled: true
+#           duration: "00:20"
+#         switch.watering_back_yard:
+#           enabled: true
+#           duration: "00:20"
+#       watering_sequence:
+#         - switch.watering_near_garage
+#         # - switch.watering_bed
+#         - switch.watering_bed2
+#         - switch.watering_back_yard
+#     action:
+#       - service: input_select.set_option
+#         data:
+#           option: "{{ switch_entity_id }}"
+#         target:
+#           entity_id: input_text.current_watering_enabled_switch_id
+#       - service: input_datetime.set_datetime
+#         data:
+#           datetime: |
+#             {% set duration_list = duration.split(':') | map('int') | list %}
+#             {{ now() + timedelta(hours=duration_list[0], minutes=duration_list[1] or 0, seconds=duration_list[2] or 0) }}
+#         target:
+#           entity_id: input_datetime.finish_current_watering_at
+  
+#   - id: toggle_real_switches_on_current_watering_switch_change
+#     trigger:
+#       platform: state
+#       entity_id: input_select.current_watering_enabled_switch_id
+#     action:
+#       - if: 
+#         - condition: template
+#           value_template: "{{ trigger.from_state.state != '' }}"
+#         then: 
+#         - service: switch.turn_off
+#           target:
+#             entity_id: "{{ trigger.from_state.state }}"
+#       - if: 
+#         - condition: template
+#           value_template: "{{ trigger.to_state.state != '' }}"
+#         then: 
+#         - service: switch.turn_on
+#           target:
+#             entity_id: "{{ trigger.to_state.state }}"
+
+#   - id: ensure_watering_switch_is_off_when_it_should_be_off
+#     mode: parallel
+#     max: 20
+#     trigger:
+#       platform: state
+#       entity_id:
+#         # flucky Sonoff mini can randomly turn on
+#         - switch.watering_near_garage
+#         - switch.watering_bed
+#         - switch.watering_bed2
+#         - switch.watering_back_yard
+#       to: ["on", "off"]
+#     condition:
+#     action:
+#       - if:
+#         - condition: template
+#           value_template: "{{ trigger.to_state.state == 'on' and states('input_select.current_watering_enabled_switch_id') != trigger.entity_id }}"
+#         then:
+#         - service: switch.turn_off
+#           target:
+#             entity_id: "{{ trigger.entity_id }}"
+#         if: 
+#           - condition: template
+#             value_template: "{{ trigger.to_state.state == 'off' and states('input_select.current_watering_enabled_switch_id') == trigger.entity_id }}"
+#         then:
+#         - service: switch.turn_on
+#           target:
+#             entity_id: "{{ trigger.entity_id }}"
+
+automation:
+    # flacky sonoff zb switches can randomly turn on
+  - id: ensure_irrigation_switch_disabled_when_zone_disabled
+    mode: parallel
+    alias: Ensure irrigation switch in the correct state
+    trigger: 
+      - platform: state
+        entity_id:
+          - switch.watering_near_garage
+          - switch.watering_bed2
+          - switch.watering_back_yard
+        to: ['on', 'off']
+        for: "00:00:02"
+    variables: 
+      zones: 
+        - switch.watering_near_garage
+        - switch.watering_bed2
+        - switch.watering_back_yard
+      current_irrigation_entity_id: |
+        {% set current_zone_index = int(state_attr('binary_sensor.irrigation_unlimited_c1_m', 'current_zone'), 0) - 1 %}
+        {{ zones[current_zone_index] if current_zone_index > -1 else '' }}
+    action:
+      - if:
+        - condition: template
+          value_template: |
+            {{ trigger.to_state.state == 'on' and current_irrigation_entity_id != trigger.entity_id }}
+        then:
+        - service: switch.turn_off
+          target:
+            entity_id: "{{ trigger.entity_id }}" 
+        else:
+          - if: 
+            - condition: template
+              value_template: |
+                {{ trigger.to_state.state == 'off' and current_irrigation_entity_id == trigger.entity_id }}
+            then:
+            - service: switch.turn_on
+              target:
+                entity_id: "{{ trigger.entity_id }}" 
+
+
+
+
+irrigation_unlimited:
+  controllers:
+    zones:
+      - name: "Near garage"
+        zone_id: near_garage
+        entity_id: "switch.watering_near_garage"
+      - name: "Beds"
+        zone_id: beds
+        entity_id: "switch.watering_bed2"
+      - name: "Back yard"
+        zone_id: back_yard
+        entity_id: "switch.watering_back_yard"
+    sequences:
+      - name: Газон, що вирос
+        schedules:
+          - name: "Sunrise"
+            time:
+              sun: "sunrise"
+              before: "00:10"
+            weekday: [mon, wed, fri, sun]
+        zones:
+          - zone_id: near_garage
+            duration: "00:10"
+      - name: Щоденний полив
+        delay: "00:05"
+        schedules:
+          - name: "Sunrise"
+            time:
+              sun: "sunrise"
+        zones:
+          - zone_id: beds
+            duration: "00:20"
+          - zone_id: back_yard
+            duration: "00:20"
+      - name: Молодий газон
+        delay: "00:05"
+        schedules:
+          - name: "Sunset"
+            time:
+              sun: "sunset"
+              before: "01:30"
+        zones:
+          - zone_id: back_yard
+            duration: "00:10"

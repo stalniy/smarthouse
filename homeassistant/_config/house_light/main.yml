@@ -1,10 +1,12 @@
 automation:
   - id: turn_off_light_in_entrance_room
+    alias: Main entrance light control
     mode: restart
     trigger:
       - platform: state
         entity_id: binary_sensor.entrance_room_motion_occupancy
         to: 'off'
+        for: 00:01:00
         variables:
           new_state: false
       - platform: state
@@ -35,29 +37,33 @@ automation:
       #     process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
       #     new_state: "on"
       - platform: state
-        # entity_id: binary_sensor.kitchen_motion
-        entity_id: binary_sensor.kitchen_presence
+        entity_id: binary_sensor.kitchen_motion_occupancy
         to: 'on'
         variables:
           new_state: |
             {{ 
               is_state('switch.kitchen_additional_light', 'on') or
               is_state('light.kitchen_light', 'on') or
-              float(states('sensor.kitchen_presence_sensor_light_level'), 0) <= 10
+              is_state('switch.entrance_room_light', 'on') or
+              float(states('sensor.entrance_room_motion_illuminance_lux'), 0) <= 1
             }}
       - platform: state
-        entity_id: binary_sensor.kitchen_presence
+        entity_id: binary_sensor.kitchen_motion_occupancy
         to: 'off'
-        for: "{{ '00:01:00' if is_state('binary_sensor.is_sleeping', 'off') else '00:00:00' }}"
+        for: "{{ '00:01:00' if is_state('binary_sensor.is_sleeping', 'off') else '00:00:10' }}"
         variables:
           new_state: false
       - platform: numeric_state
-        entity_id: sensor.kitchen_presence_sensor_light_level
-        below: 10
+        entity_id: sensor.entrance_room_motion_illuminance_lux
+        below: 1
         variables:
           new_state: "{{ is_state('binary_sensor.kitchen_presence', 'on') }}"
     variables: 
       device_state: "{{ 'on' if new_state else 'off' }}"
+    condition: 
+      - condition: state
+        entity_id: input_boolean.disable_auto_light
+        state: 'off'
     action:
       - if:
         - condition: state
@@ -72,36 +78,36 @@ automation:
           target:
             entity_id: switch.kitchen_additional_light
 
-  - id: toggle_kitchen_bar_light
-    alias: Kitchen bar light control
-    mode: restart
-    trigger:  
-      - platform: state
-        entity_id: binary_sensor.kitchen_bar_presence
-        to: 'on'
-        for: '00:00:05'
-      - platform: state
-        entity_id: binary_sensor.kitchen_bar_presence
-        to: 'off'
-        for: "{{ '00:30:00' if is_state('binary_sensor.is_sleeping', 'off') else '00:00:00' }}"
-      # - platform: mqtt
-      #   topic: zb2mqtt/kitchen_bar_light_toggler
-      #   variables: 
-      #     process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
-      #     new_state: "on"
-    variables: 
-      new_state: | 
-        {% set is_on = trigger.to_state.state == 'on' and float(states('sensor.kitchen_presence_sensor_light_level'), 0) <= 10 %}
-        {{ 'on' if is_on else 'off'  }}
-    action:
-      - if:
-        - condition: template
-          value_template: "{{ new_state == 'off' }}"
-        then:
-        - delay: "00:00:10"
-      - service_template: "light.turn_{{ new_state }}"
-        target:
-          entity_id: light.kitchen_bar
+  # - id: toggle_kitchen_bar_light
+  #   alias: Kitchen bar light control
+  #   mode: restart
+  #   trigger:  
+  #     - platform: state
+  #       entity_id: binary_sensor.kitchen_bar_presence
+  #       to: 'on'
+  #       for: '00:00:05'
+  #     - platform: state
+  #       entity_id: binary_sensor.kitchen_bar_presence
+  #       to: 'off'
+  #       for: "{{ '00:30:00' if is_state('binary_sensor.is_sleeping', 'off') else '00:00:00' }}"
+  #     # - platform: mqtt
+  #     #   topic: zb2mqtt/kitchen_bar_light_toggler
+  #     #   variables: 
+  #     #     process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
+  #     #     new_state: "on"
+  #   variables: 
+  #     new_state: | 
+  #       {% set is_on = trigger.to_state.state == 'on' and float(states('sensor.kitchen_presence_sensor_light_level'), 0) <= 10 %}
+  #       {{ 'on' if is_on else 'off'  }}
+  #   action:
+  #     - if:
+  #       - condition: template
+  #         value_template: "{{ new_state == 'off' }}"
+  #       then:
+  #       - delay: "00:00:10"
+  #     - service_template: "light.turn_{{ new_state }}"
+  #       target:
+  #         entity_id: light.kitchen_bar
 
   - id: set_brightness_level
     alias: Set brightness level
@@ -139,12 +145,13 @@ automation:
           is_state('group.residents', 'home')
         }}
       map_boolean_state: "'on' if is_turned_on else 'off'"
+      danger_color: [255, 0, 24]
     action:
       - service: light.turn_on
         target:
           entity_id: light.cabinet_map_light
         data:
-          rgb_color: "{{ [255, 0, 24] if is_turned_on else [2, 250, 240] }}"
+          rgb_color: "{{ danger_color if is_turned_on else [2, 250, 240] }}"
           brightness_pct: 90
       - if: 
         - condition: template
@@ -153,4 +160,19 @@ automation:
           - service: light.turn_off
             target:
               entity_id: light.cabinet_map_light
+      - service: light.turn_on
+        target:
+          entity_id: light.livingroom_tv_light
+        data:
+          rgb_color: "{{ danger_color if is_turned_on else [245, 194, 17] }}"
+          brightness_pct: 90
+      - if: 
+        - condition: template
+          value_template: "{{ not is_turned_on and is_state('switch.livingroom_tv', 'off') }}"
+        then:
+          - service: light.turn_on
+            data:
+              brightness: 0
+            target:
+              entity_id: light.livingroom_tv_light
 

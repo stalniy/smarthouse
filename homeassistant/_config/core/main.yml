@@ -14,8 +14,8 @@ input_datetime:
     name: Лягли спати
     has_date: true
     has_time: true
-  last_water_heater_2k_state_changed:
-    name: Останні зміни в стані water_heater_2k
+  last_water_heater_2k_turned_off_at:
+    name: Останній час вимкнення water_heater_2k
     has_date: true
     has_time: true
 
@@ -36,6 +36,10 @@ input_select:
       - close_panoramic
       - close_everything
       - open
+
+input_boolean:
+  disable_auto_light: 
+    name: Disable automatic light
     
 counter:
   kid_bathroom_switch:
@@ -137,6 +141,19 @@ template:
           {% set tomorrow_morning = as_local(slept_at + timedelta(days=1)).replace(hour=7, minute=0, second=0) %}
           {{ current_time < tomorrow_morning }}
         {% endif %}
+  - trigger:
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+    - platform: event
+      event_type: my_event_template_reloaded
+    sensor:
+    - name: solar_forecast
+      unit_of_measurement: "kW"
+      state_class: measurement
+      state: |
+        {% set last_polled_at = as_datetime(states('sensor.solcast_pv_forecast_api_last_polled')) %}
+        {{ float(states('sensor.solcast_pv_forecast_forecast_tomorrow') if now().hour >= 23 or now().day != last_polled_at.day else states('sensor.solcast_pv_forecast_forecast_today'), 0) }}
 
 command_line:
   - switch:
@@ -148,6 +165,11 @@ command_line:
       value_template: >-
         {{ value == '"on"' }}
       # availability: "{{ value_json.error == 0 }}"
-        
+  - sensor:
+      name: host_battery
+      state_class: measurement
+      command: "cat /sys/class/power_supply/BAT1/capacity"
+      unit_of_measurement: "%"
+
 automation: !include ./automations.yml
 script: !include ./script.yml

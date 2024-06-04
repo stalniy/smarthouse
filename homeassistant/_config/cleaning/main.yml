@@ -14,23 +14,23 @@ template:
       state: >-
         {% set rooms_to_clean = [
           "hall",
-          "living_room_table",
+          "livingroom_table",
           "kitchen"
         ] %} 
         {% set week_day = now().isoweekday() %}
         
         {% if week_day % 2 == 0 or week_day in [6, 7] %} 
           {% set rooms_to_clean = rooms_to_clean + [
-            "bedroom_kid_small",
-            "bedroom_kid_big",
-            "living_room_entertainment"
+            "kid_bedroom_small",
+            "kid_bedroom_big",
+            "livingroom_entertainment"
           ]%}
         {% endif %}
 
         {% if week_day % 2 != 0 or week_day in [6, 7] %}
           {% set rooms_to_clean = rooms_to_clean + [
             "master_bedroom",
-            "wardrobe",
+            "master_wardrobe",
             "cabinet"
           ]%}
         {% endif %}
@@ -52,18 +52,19 @@ script:
           select:
             multiple: true
             options:
-            - bedroom_kid_small
-            - bedroom_kid_big
-            - cabinet
-            - kitchen
-            - main_entrance_room
-            - living_room_table
-            - child_bathroom
-            - master_bedroom
-            - wardrobe
-            - living_room_entertainment
-            - master_bathroom
             - hall
+            - kid_bedroom_small
+            - livingroom_entertainment
+            - kitchen
+            - kid_bathroom
+            - master_bathroom
+            - master_bedroom
+            - kid_bedroom_big
+            - livingroom_table
+            - entrance_room
+            - tech_room
+            - cabinet
+            - master_wardrobe
       repeats:
         name: Repeat cleaning
         default: 1
@@ -108,18 +109,19 @@ script:
       rooms_ids: |
         {% 
           set all_rooms = [
-            { "label": "bedroom_kid_small", "id": 16 },
-            { "label": "bedroom_kid_big", "id": 17 },
-            { "label": "cabinet", "id": 18 },
-            { "label": "kitchen", "id": 19 },
-            { "label": "main_entrance_room", "id": 20 },
-            { "label": "living_room_table", "id": 21 },
-            { "label": "child_bathroom", "id": 27 },
-            { "label": "master_bedroom", "id": 23 },
-            { "label": "wardrobe", "id": 24 },
-            { "label": "living_room_entertainment", "id": 25 },
-            { "label": "master_bathroom", "id": 26 },
-            { "label": "hall", "id": 22 }
+            { "id": 16, "label": "hall" },
+            { "id": 17, "label": "kid_bedroom_small" },
+            { "id": 18, "label": "livingroom_entertainment" },
+            { "id": 19, "label": "kitchen" },
+            { "id": 20, "label": "kid_bathroom" },
+            { "id": 21, "label": "master_bathroom" },
+            { "id": 22, "label": "master_bedroom" },
+            { "id": 23, "label": "kid_bedroom_big" },
+            { "id": 24, "label": "livingroom_table" },
+            { "id": 25, "label": "entrance_room" },
+            { "id": 26, "label": "tech_room" },
+            { "id": 27, "label": "cabinet" },
+            { "id": 28, "label": "master_wardrobe" }
           ]
         %} 
         {% set rooms_to_clean = rooms %}
@@ -265,9 +267,9 @@ script:
       zones_coords: |
         {% 
           set coords = [
-            { "label": "livingroom_entertainment", "value": [24100,25160,27340,28220,1] },
-            { "label": "terrace_exit", "value": [26033,25167,27317,27283,2] },
-            { "label": "fireplace", "value": [21825,25800,24350,27350,2] }
+            { "label": "livingroom_entertainment", "value": [24329,25379,27971,28607,1] },
+            { "label": "terrace_exit", "value": [24343,25536,25500,28564,2] },
+            { "label": "fireplace", "value": [27114,26750,30029,28021,2] }
           ]
         %}
         {{ coords 

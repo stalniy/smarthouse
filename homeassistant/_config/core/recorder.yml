@@ -2,30 +2,30 @@ auto_purge: false
 auto_repack: false
 db_url: !secret recorder_db_url
 
-include:
-  domains:
-    - light
-    - switch
-    - sensor
-    - binary_sensor
-    - number
-    - select
-    - input_select
-    - input_boolean
-    - input_number
-    - input_datetime
-    - climate
-    - cover
-    - fan
-    - person
-    - time
-  entities:
-    - device_tracker.serhii_phone_shortcut
-    - script.go_sleep
-    - script.open_garage_from_nfc_tag
-    - script.toggle_garage_gate
-    - script.toggle_home_state_from_car
-    - sensor.main_entrance_lock_battery
+# include:
+#   domains:
+#     - light
+#     - switch
+#     - sensor
+#     - binary_sensor
+#     - number
+#     - select
+#     - input_select
+#     - input_boolean
+#     - input_number
+#     - input_datetime
+#     - climate
+#     - cover
+#     - fan
+#     - person
+#     - time
+#   entities:
+#     - device_tracker.serhii_phone_shortcut
+#     - script.go_sleep
+#     - script.open_garage_from_nfc_tag
+#     - script.toggle_garage_gate
+#     - script.toggle_home_state_from_car
+#     - sensor.main_entrance_lock_battery
 
 exclude:
   entities:

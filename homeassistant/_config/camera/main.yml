@@ -65,6 +65,7 @@ automation:
           message: "Подія з камери: {{ trigger.event.data.Code }}"
 
   - id: proxy_dahua_cross_line_events
+    alias: Proxy Camera cross line events
     mode: parallel
     max: 100
     trigger:
@@ -79,8 +80,8 @@ automation:
       - event: yard_crossed_line
         event_data: 
           name: "{{ event.Name }}"
-          direction: "{{ event['Direction'] }}"
-          object_type: "{{ event['Object']['ObjectType'] }}"
+          direction: "{{ event.Direction }}"
+          object_type: "{{ event.Object['ObjectType'] }}"
           original: "{{ trigger.event.data }}"
 
   - id: proxy_dahua_cross_region_events
@@ -98,6 +99,42 @@ automation:
       - event: yard_crossed_region
         event_data: 
           name: "{{ event.Name }}"
-          direction: "{{ event['Direction'] }}"
-          object_type: "{{ event['Object']['ObjectType'] }}"
+          direction: "{{ event.Direction }}"
+          object_type: "{{ event.Object['ObjectType'] }}"
           original: "{{ trigger.event.data }}"
+
+  - id: new_guests
+    mode: single
+    alias: New guests visit us
+    trigger:
+      platform: event
+      event_type: yard_crossed_line
+      event_data:
+        name: yard_gates
+        object_type: Human
+        direction: LeftToRight
+    variables:
+      photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+    condition:
+      - condition: state
+        entity_id: group.residents
+        state: home
+    action:
+      - service: camera.snapshot
+        target:
+          entity_id: "camera.camera_garage_gates_sub"
+        data:
+          filename: "{{ photo_path }}"
+      - event: important_home_event
+        event_data:
+          message: |
+            Прийшли гості
+          attachments:
+            - "{{ photo_path }}"
+      - service: tts.speak
+        target:
+          entity_id: tts.piper
+        data:
+          message: Прийшли гості
+          media_player_entity_id: media_player.vlc_telnet
+

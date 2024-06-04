@@ -2,7 +2,7 @@ version: '3'
 services:
   homeassistant:
     container_name: homeassistant
-    image: "ghcr.io/home-assistant/home-assistant:2024.3"
+    image: "ghcr.io/home-assistant/home-assistant:2024.5"
     volumes:
       - /home/homeman/smarthome/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
@@ -13,22 +13,22 @@ services:
     devices:
       - /dev/snd:/dev/snd
 
-  esphome:
-    container_name: esphome
-    image: "ghcr.io/esphome/esphome:2024.3.2"
-    volumes:
-      - /home/homeman/smarthome/esphome/config:/config
-      - /etc/localtime:/etc/localtime:ro
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      - USERNAME=${ESPHOME_USER}
-      - PASSWORD=${ESPHOME_PASSWORD}
-      - PIP_CACHE_DIR=.pip
-      - PLATFORMIO_CORE_DIR=.plattformio
-      - PLATFORMIO_GLOBALLIB_DIR=.plattformioLibs
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
+  # esphome:
+  #   container_name: esphome
+  #   image: "ghcr.io/esphome/esphome:2024.3.2"
+  #   volumes:
+  #     - /home/homeman/smarthome/esphome/config:/config
+  #     - /etc/localtime:/etc/localtime:ro
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   environment:
+  #     - USERNAME=${ESPHOME_USER}
+  #     - PASSWORD=${ESPHOME_PASSWORD}
+  #     - PIP_CACHE_DIR=.pip
+  #     - PLATFORMIO_CORE_DIR=.plattformio
+  #     - PLATFORMIO_GLOBALLIB_DIR=.plattformioLibs
+  #   devices:
+  #     - /dev:/dev
 
   zb2mqtt-house: 
     container_name: zb2mqtt-house
@@ -122,6 +122,30 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - /home/homeman/smarthome/postgres/data:/var/lib/postgresql/data
+
+  piper:
+    container_name: piper
+    image: rhasspy/wyoming-piper
+    restart: unless-stopped
+    command: --voice uk_UA-ukrainian_tts-medium
+    volumes:
+      - /home/homeman/smarthome/piper-data:/data
+    # environment:
+      # - TZ=Europe/Kyiv
+    ports:
+      - 10200:10200
+
+  vlc_via_telnet:
+    container_name: vlc_telnet
+    image: ghcr.io/denidoman/vlc-telnet-docker:main
+    ports:
+      - 4212:4212
+    environment:
+      - TELNET_PASSWORD=${VLC_TELNET_PASSWORD}
+      - SOUND_CARD_NUMBER=1
+    devices:
+      - /dev/snd:/dev/snd
+
 
   # rhasspy:
   #   image: "rhasspy/rhasspy"

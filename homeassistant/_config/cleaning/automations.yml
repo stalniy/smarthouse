@@ -5,7 +5,7 @@
     - platform: template
       value_template: "{{ is_state('counter.kid_bathroom_switch', '3') }}"
       variables:
-        bathroom_id: child_bathroom
+        bathroom_id: kid_bathroom
         feedback_entity_id: light.kid_bathroom
     - platform: template
       value_template: "{{ is_state('counter.master_bathroom_switch', '3') }}"
@@ -112,7 +112,7 @@
         - service: script.vacuum_clean
           alias: Пилососити вхідну кімнату
           data: 
-            rooms: [main_entrance_room]
+            rooms: [entrance_room]
             repeats: 2
             fan_speed: max
             mop_intensity: 'off'
@@ -137,7 +137,7 @@
             - service: script.vacuum_clean
               alias: Мити вхідну кімнату
               data: 
-                rooms: [main_entrance_room]
+                rooms: [entrance_room]
                 fan_speed: 'off'
                 mop_intensity: intense
                 mop_mode: deep_plus
