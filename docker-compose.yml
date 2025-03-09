@@ -7,6 +7,8 @@ services:
       - /home/homeman/smarthome/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
+    tmpfs:
+      - /tmp/snapshots
     restart: unless-stopped
     privileged: true
     network_mode: host
@@ -32,7 +34,7 @@ services:
 
   zb2mqtt-house: 
     container_name: zb2mqtt-house
-    image: koenkk/zigbee2mqtt:1.36.0
+    image: koenkk/zigbee2mqtt:1.42.0
     restart: unless-stopped
     depends_on:
       - mq
@@ -48,9 +50,29 @@ services:
     ports:
       - 9123:8080
 
+  # zb2mqtt-test: 
+  #   container_name: zb2mqtt-test
+  #   image: koenkk/zigbee2mqtt:1.36.0
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mq
+  #   volumes: 
+  #     - /run/udev:/run/udev:ro
+  #     - /home/homeman/smarthome/zb2mqtt-test:/app/data
+  #   environment:
+  #     - TZ=Europe/Kyiv
+  #     - ZIGBEE2MQTT_CONFIG_MQTT_SERVER=mqtt://${MQTT_SERVER_HOST}
+  #     - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USER}
+  #     - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASSWORD}
+  #     - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=${ZB_HOUSE_SERIAL_PORT}
+  #   ports:
+  #     - 9125:8080
+  #   devices:
+  #     - /dev/ttyUSB0:/dev/ttyUSB0
+
   zb2mqtt-garage: 
     container_name: zb2mqtt-garage
-    image: koenkk/zigbee2mqtt:1.36.0
+    image: koenkk/zigbee2mqtt:1.42.0
     restart: unless-stopped
     depends_on:
       - mq
@@ -93,7 +115,7 @@ services:
   signal-cli-rest-api:
     container_name: signal-rest-api
     restart: unless-stopped
-    image: bbernhard/signal-cli-rest-api:latest
+    image: bbernhard/signal-cli-rest-api:0.89
     environment:
       - MODE=json-rpc #supported modes: json-rpc, native, normal. json-prc is recommended for speed
     ports:

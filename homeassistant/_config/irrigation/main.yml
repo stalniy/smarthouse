@@ -1,3 +1,7 @@
+input_boolean:
+  skip_irrigation_today:
+    name: Не поливати сьогодні
+
 # input_select: 
 #   current_watering_enabled_switch_id:
 #     name: Entity name of current watering enabled switch
@@ -129,6 +133,82 @@
 #             entity_id: "{{ trigger.entity_id }}"
 
 automation:
+  - id: irrigation1
+    alias: Irrigation Sunrise
+    trigger: 
+      - platform: sun
+        event: sunrise
+        offset: "-01:30:00" # 00:30:00 in summer
+    condition:
+      - condition: template
+        value_template: |
+          {{ 
+            is_state('input_boolean.skip_irrigation_today', 'off') and
+            float(states('sensor.lux_battery'), 0) >= 40 
+          }}
+    action:
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z2
+          time: "00:20:00"
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z3
+          time: "00:20:00"
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z4
+          time: "00:20:00"
+          delay: "00:01:00"
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z1
+          time: "00:10:00"
+          delay: "00:01:00"
+
+  - id: irrigation2
+    alias: Irrigation Sunset
+    trigger: 
+      - platform: sun
+        event: sunset
+        offset: "-01:00:00" # 00:30 in summer
+    condition:
+      - condition: template
+        value_template: |
+          {{ 
+            is_state('input_boolean.skip_irrigation_today', 'off') and
+            float(states('sensor.lux_battery'), 0) >= 40 
+          }}
+          
+    action:
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z2
+          time: "00:10:00"
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z3
+          time: "00:10:00"
+      - service: irrigation_unlimited.manual_run
+        data:
+          entity_id: binary_sensor.irrigation_unlimited_c1_z4
+          time: "00:10:00"
+          delay: "00:01:00"
+
+  - id: reset_irrigation_skipping
+    alias: Reset irrigation skipping
+    trigger:
+      - platform: time
+        at: [00:01:00, 04:00:00]
+    condition:
+      - condition: state
+        entity_id: input_boolean.skip_irrigation_today
+        state: 'on'
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.skip_irrigation_today
+        
     # flacky sonoff zb switches can randomly turn on
   - id: ensure_irrigation_switch_disabled_when_zone_disabled
     mode: parallel
@@ -138,6 +218,7 @@ automation:
         entity_id:
           - switch.watering_near_garage
           - switch.watering_bed2
+          - switch.watering_bed
           - switch.watering_back_yard
         to: ['on', 'off']
         for: "00:00:02"
@@ -145,6 +226,7 @@ automation:
       zones: 
         - switch.watering_near_garage
         - switch.watering_bed2
+        - switch.watering_bed
         - switch.watering_back_yard
       current_irrigation_entity_id: |
         {% set current_zone_index = int(state_attr('binary_sensor.irrigation_unlimited_c1_m', 'current_zone'), 0) - 1 %}
@@ -168,11 +250,12 @@ automation:
               target:
                 entity_id: "{{ trigger.entity_id }}" 
 
-
-
-
 irrigation_unlimited:
   controllers:
+    queue_manual: true
+    check_back:
+      delay: 3
+      retries: 100
     zones:
       - name: "Near garage"
         zone_id: near_garage
@@ -180,38 +263,9 @@ irrigation_unlimited:
       - name: "Beds"
         zone_id: beds
         entity_id: "switch.watering_bed2"
+      - name: "Beds toilet"
+        zone_id: beds_toilet
+        entity_id: "switch.watering_bed"
       - name: "Back yard"
         zone_id: back_yard
         entity_id: "switch.watering_back_yard"
-    sequences:
-      - name: Газон, що вирос
-        schedules:
-          - name: "Sunrise"
-            time:
-              sun: "sunrise"
-              before: "00:10"
-            weekday: [mon, wed, fri, sun]
-        zones:
-          - zone_id: near_garage
-            duration: "00:10"
-      - name: Щоденний полив
-        delay: "00:05"
-        schedules:
-          - name: "Sunrise"
-            time:
-              sun: "sunrise"
-        zones:
-          - zone_id: beds
-            duration: "00:20"
-          - zone_id: back_yard
-            duration: "00:20"
-      - name: Молодий газон
-        delay: "00:05"
-        schedules:
-          - name: "Sunset"
-            time:
-              sun: "sunset"
-              before: "01:30"
-        zones:
-          - zone_id: back_yard
-            duration: "00:10"

@@ -126,8 +126,8 @@ script:
         %} 
         {% set rooms_to_clean = rooms %}
 
-        {% if is_state('input_boolean.skip_child_zone', 'on') and 'living_room_entertainment' in rooms %}
-          {% set rooms_to_clean = rooms_to_clean | reject('eq', 'living_room_entertainment') | list %}
+        {% if is_state('input_boolean.skip_child_zone', 'on') and 'livingroom_entertainment' in rooms %}
+          {% set rooms_to_clean = rooms_to_clean | reject('eq', 'livingroom_entertainment') | list %}
         {% endif %}
         
         {{ all_rooms 
@@ -197,7 +197,7 @@ script:
                 value_template: |
                   {{ 
                     is_state('input_boolean.skip_child_zone', 'on') and 
-                    'living_room_entertainment' in rooms 
+                    'livingroom_entertainment' in rooms 
                   }}
             then:
               - service: script.vacuum_clean_zone
@@ -267,7 +267,7 @@ script:
       zones_coords: |
         {% 
           set coords = [
-            { "label": "livingroom_entertainment", "value": [24329,25379,27971,28607,1] },
+            { "label": "livingroom_entertainment", "value": [24300,25750,27933,28617,1] },
             { "label": "terrace_exit", "value": [24343,25536,25500,28564,2] },
             { "label": "fireplace", "value": [27114,26750,30029,28021,2] }
           ]

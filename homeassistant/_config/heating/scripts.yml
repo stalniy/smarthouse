@@ -51,3 +51,43 @@ sync_heater_valves:
         - service: switch.turn_on
           target:
             entity_id: "{{ entity_ids['turn_on'] | list }}"
+
+toggle_hwc:
+  alias: Toggle HWC
+  fields:
+    state:
+      name: State
+      required: true
+      selector:
+        boolean: ~
+  variables:
+    new_state: "{{ 'on' if state else 'off' }}"
+  sequence:
+    - if: 
+      - condition: state
+        entity_id: input_boolean.is_main_heater_connected_to_solar
+        state: 'on'
+      then:
+        # - if: 
+        #   - condition: state
+        #     entity_id: switch.water_heater_2k
+        #     state: 'on'
+        #   then:
+        #   - service: switch.turn_off
+        #     target:
+        #       entity_id: switch.water_heater_2k
+        - service_template: "input_boolean.turn_{{ new_state }}"
+          target:
+            entity_id: input_boolean.hwc_enabled
+      else: 
+        # - if: 
+        #   - condition: state
+        #     entity_id: input_boolean.hwc_enabled
+        #     state: 'on'
+        #   then:
+        #   - service: input_boolean.turn_off
+        #     target:
+        #       entity_id: input_boolean.hwc_enabled
+        - service_template: "switch.turn_{{ new_state }}"
+          target:
+            entity_id: switch.water_heater_2k

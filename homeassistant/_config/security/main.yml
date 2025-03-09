@@ -4,7 +4,7 @@ automation:
     trigger:
       - platform: state
         entity_id: 
-          - binary_sensor.kitchen_motion_occupancy
+          - binary_sensor.kitchen_occupancy
     condition:
       - condition: template
         value_template: "{{ states('group.residents') != 'home' and trigger.to_state.state != 'off' }}"

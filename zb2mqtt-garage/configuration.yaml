@@ -36,9 +36,15 @@ devices:
     friendly_name: watering_bed2
   '0x385b44fffe1b2520':
     friendly_name: watering_back_yard
-  '0x54ef441000abac9a':
-    friendly_name: garage_gates_right
   '0xa4c138d8fe2c2eb5':
     friendly_name: garage_front_center
+  '0xa4c138c6c148a424':
+    friendly_name: garage_light_inside
+  '0x54ef441000d2844e':
+    friendly_name: garage_light_sensor
+  '0xa4c138e6e170a28a':
+    friendly_name: basement_fan
+  '0xa4c138e381bfdac1':
+    friendly_name: garage_gates_right
 device_options:
   legacy: false

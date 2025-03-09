@@ -102,7 +102,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     try:
         await solcast.sites_data()
-        await solcast.sites_usage()
     except Exception as ex:
         raise ConfigEntryNotReady(f"Getting sites data failed: {ex}") from ex
 

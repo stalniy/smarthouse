@@ -534,7 +534,6 @@ class SolcastApi:
             await self.http_data_call(site['resource_id'], site['apikey'], dopast)
 
         self._data["last_updated"] = dt.now(timezone.utc).isoformat()
-        #await self.sites_usage()
         self._data["version"] = _JSON_VERSION
         #self._data["weather"] = self._weather
         self._loaded_data = True

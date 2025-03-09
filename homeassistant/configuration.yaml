@@ -75,15 +75,16 @@ homeassistant:
     doghouse: !include _config/doghouse/main.yml
     camera: !include _config/camera/main.yml
     irrigation: !include _config/irrigation/main.yml
+    ventillation_basement: !include _config/ventillation_basement/main.yml
 
 python_script:
 ffmpeg:
 
 logger:
   default: warning
-  logs:
-    homeassistant.components.python_script.heating_ebus_sync.py: info
-    custom_components.tpms_ble: debug
+  # logs:
+    # homeassistant.components.python_script.heating_ebus_sync.py: info
+    # custom_components.tpms_ble: debug
     # custom_components.dahua: debug
 
 
@@ -98,3 +99,20 @@ websocket:
   - url: !secret signal_ws_url
     event_type: !secret signal_message_to_event_type
     event_data: !secret signal_message_to_event_data
+
+ios:
+  actions:
+    - name: back_home_from_car
+      show_in_carplay: true
+      label:
+        text: back home
+      icon:
+        icon: garage-open-variant 
+        color: '#000000'
+    - name: leave_home_from_car
+      show_in_carplay: true
+      label:
+        text: leave home
+      icon:
+        icon: garage-variant 
+        color: '#000000'

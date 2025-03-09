@@ -4,23 +4,23 @@ automation:
     mode: parallel
     max: 50
     trigger:
-      platform: event
-      event_type: dahua_event_received
-      event_data:
-        action: Start
-      variables:
-        photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
-        base_entity_id: >-
-          {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}
+      - platform: event
+        event_type: dahua_event_received
+        event_data:
+          action: Start
+          Code: CrossLineDetection
+      - platform: event
+        event_type: dahua_event_received
+        event_data:
+          action: Start
+          Code: CrossRegionDetection
+    variables:
+      photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+      base_entity_id: >-
+        {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}
     condition:
       - condition: template
-        value_template: |
-          {{
-            trigger.event.data.Code in ['CrossLineDetection', 'CrossRegionDetection'] and
-            ( 
-              is_state('group.residents', 'not_home')
-            )
-          }} 
+        value_template: "{{ is_state('group.residents', 'not_home') }}"
     action:
       - service: camera.snapshot
         target:
@@ -62,7 +62,9 @@ automation:
     action:
       - event: important_home_event
         event_data:
-          message: "Подія з камери: {{ trigger.event.data.Code }}"
+          message: |
+            Подія з камери {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}: 
+            {{ trigger.event.data.Code }}
 
   - id: proxy_dahua_cross_line_events
     alias: Proxy Camera cross line events
@@ -80,7 +82,7 @@ automation:
       - event: yard_crossed_line
         event_data: 
           name: "{{ event.Name }}"
-          direction: "{{ event.Direction }}"
+          direction: "{{ event.Direction if 'Direction' in event else 'None' }}"
           object_type: "{{ event.Object['ObjectType'] }}"
           original: "{{ trigger.event.data }}"
 
@@ -99,7 +101,7 @@ automation:
       - event: yard_crossed_region
         event_data: 
           name: "{{ event.Name }}"
-          direction: "{{ event.Direction }}"
+          direction: "{{ event.Direction if 'Direction' in event else 'None' }}"
           object_type: "{{ event.Object['ObjectType'] }}"
           original: "{{ trigger.event.data }}"
 

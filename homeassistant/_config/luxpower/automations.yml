@@ -5,17 +5,20 @@
     - platform: state
       entity_id: binary_sensor.is_cheap_grid_energy_period
       # entity_id: binary_sensor.lux_may_ac_charge
-      to: 
-        - "on"
-        - "off"
+      to: ['on', 'off']
     - platform: state
-      entity_id: sensor.lux_battery
+      entity_id: binary_sensor.lux_battery_lower_needed_ac_charge_level
+      to: ['on', 'off']
   variables:
     charge_type: |
       {{ 'Time' if is_state('binary_sensor.is_cheap_grid_energy_period', 'on') else 'Disable' }}
   condition:
     - condition: template
-      value_template: "{{ float(states('sensor.lux_battery'), 1) <= float(states('number.lux_ac_battery_charge_level', 0)) }}"
+      value_template: |
+        {{ 
+          is_state('binary_sensor.is_cheap_grid_energy_period', 'off') or 
+          is_state('binary_sensor.lux_battery_lower_needed_ac_charge_level', 'on')
+        }}
   action:
     - if: 
       - condition: template
@@ -27,6 +30,13 @@
           option: "{{ charge_type }}"
         target:
           entity_id: select.lux_ac_charge_type
+      - wait_template: "{{ is_state('select.lux_ac_charge_type', charge_type) }}"
+        timeout: 10
+        continue_on_timeout: false
+      - service_template: "switch.turn_{{ 'on' if charge_type == 'Time' else 'off' }}"
+        target:
+          entity_id: switch.lux_ac_charge_enable
+
     # - if:
     #   - condition: template
     #     value_template: "{{ trigger.to_state.state == 'off' and trigger.from_state.state == 'on' }}"
@@ -52,11 +62,13 @@
       data:
         value: |
           {% set power_forecast = float(states('sensor.solcast_pv_forecast_forecast_tomorrow'), 12) %}
-          {% if power_forecast <= 5 %}
+          {% set battery_level = float(states('sensor.lux_battery'), 0) %}
+          
+          {% if power_forecast <= 10 %}
             100
-          {% elif power_forecast <= 10 %}
-            70
           {% elif power_forecast <= 15 %}
+            70
+          {% elif power_forecast <= 20 or battery_level < 40 %}
             40
           {% else %}
             0
@@ -123,8 +135,48 @@
     minutes: /1
   condition:
   - condition: template
-    value_template: "{{ now().timestamp() - state_attr('sensor.lux_data_received_time', 'timestamp') > 60 * 20 }}"
+    value_template: "{{ now().timestamp() - state_attr('sensor.lux_data_received_time', 'timestamp') > 60 * 7 }}"
   action:
+  - service: persistent_notification.create
+    data:
+      title: "⚠ - Warning!"
+      message: |
+        Lux power reconnect initiated
   - service: luxpower.luxpower_reconnect
     data:
-      dongle: "{{ state_attr('sensor.lux_data_received_time', 'dongle') }}"
+      dongle: !secret lux_dongle_serial
+
+- id: refresh_lux_values
+  mode: restart
+  alias: Refresh LUX values 
+  trigger:
+    - platform: state
+      entity_id: 
+        - switch.hwc_heating
+      to: "on"
+    - platform: time_pattern
+      seconds: "/5"
+  condition:
+    - condition: template
+      value_template: |
+        {{ 
+          has_value('number.lux_generator_charge_battery_current') and
+          has_value('sensor.lux_battery') and
+          has_value('sensor.lux_data_received_time')
+        }}
+  action:
+    - service: luxpower.luxpower_refresh_registers
+      data:
+        dongle: !secret lux_dongle_serial
+      
+- id: sync_lux_time
+  mode: single
+  alias: Sync lux time to local time
+  trigger:
+    platform: time
+    at: '23:00:00'
+  action:
+    - service: luxpower.luxpower_synctime
+      data:
+        dongle: !secret lux_dongle_serial
+        do_set_time: true

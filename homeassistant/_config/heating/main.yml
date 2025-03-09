@@ -17,6 +17,7 @@ homeassistant:
     climate.master_bedroom:
       location: house
       heater_type: radiator 
+      heater_importance: high
     climate.master_bathroom_hotfloor:
       heater_type: hotfloor
       location: house
@@ -29,6 +30,7 @@ homeassistant:
     climate.kid_big_bedroom:
       heater_type: radiator
       location: house
+      heater_importance: high
     climate.kid_bathroom_hotfloor:
       heater_type: hotfloor
       location: house
@@ -71,7 +73,12 @@ input_number:
 
 input_datetime: 
   disable_hot_floor_pump_at:
-    name: Час вимкнення насос гарячої підлоги
+    name: Час вимкнення насосу ТП
+    icon: mdi:clock
+    has_date: true
+    has_time: true
+  disable_hot_water_pump_at: 
+    name: Час вимкнення насосу ГВП
     icon: mdi:clock
     has_date: true
     has_time: true
@@ -92,6 +99,7 @@ input_select:
       - only_hot_floor
       - only_hot_floor_eco
       - only_radiators
+      - eco
       - both
       - 'off' # disable automatic heating
 input_boolean:
@@ -99,6 +107,8 @@ input_boolean:
     name: Включити опалення
   hwc_enabled: 
     name: Включити ГВС
+  is_main_heater_connected_to_solar:
+    name: "Котел на СЕС"
 
   # because I have NormalOpen heating valves, I need thermostat to somewhere store its desired state
   # so then I can understand whether heating is required or not based on `hvac_action` attribute
@@ -147,12 +157,11 @@ template:
           | join(',\n')
         %}
         {{ 'none' if result == '' else result }}
-        
   - binary_sensor: 
     - name: is_day_cheap_heating_period
       state: "{{ is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and is_state('binary_sensor.is_day_heating_time', 'on') }}"
     - name: is_hot_floor_valves_open
-      delay_on: 00:03:00 # time to open heater valve
+      # delay_on: 00:03:00 # time to open heater valve
       state: |
         {{ ([
           states('switch.heater_valve_master_bathroom_hot_floor'),
@@ -164,7 +173,7 @@ template:
           states('switch.heater_valve_hot_floor_entrance_tech_room')
         ] | select('eq', 'off') | first) == 'off' }}
     - name: is_radiator_valves_open
-      delay_on: 00:03:00 # time to open heater valve
+      # delay_on: 00:03:00 # time to open heater valve
       state: |
         {{ ([
           states('switch.heater_valve_master_bedroom'),
@@ -197,6 +206,28 @@ template:
         }}
     - name: fireplace_heating_enabled
       state: "{{ float(states('sensor.fireplace_fan_power'), 0) > 0 }}"  
+    - name: hot_floor_pump_required
+      state: |
+        {{
+          is_state('binary_sensor.is_hot_floor_valves_open', 'on') and (
+            is_state('binary_sensor.fireplace_heating_enabled', 'on') or (
+              is_state('input_boolean.heating_enabled', 'on') and
+              is_state('binary_sensor.ebusd_signal', 'on')
+            ) or (
+              is_state('binary_sensor.lux_has_solar_output_live', 'on') and
+              float(states('sensor.solar_forecast'), 0) > 15 and
+              is_state('binary_sensor.lux_at_min_battery_level', 'off') and
+              float(states('sensor.lux_power_from_grid_live'), -1) == 0
+            )
+          )
+        }}
+    - name: hot_water_pump_required
+      state: |
+        {{
+          is_state('light.kid_bathroom', 'on') or
+          is_state('light.master_bathroom', 'on') or
+          is_state('binary_sensor.kitchen_occupancy', 'on')
+        }}
 
   - trigger:
     - platform: time_pattern
@@ -218,12 +249,12 @@ template:
       hours: "*"
       minutes: 0
     - platform: event
-      event_type: my_event_template_reloaded
+      event_type: event_template_reloaded
     - platform: homeassistant
       event: start
     binary_sensor:
     - name: is_day_heating_time
-      state: "{{ 5 <= now().hour < 21 }}"
+      state: "{{ 4 <= now().hour < 21 }}"
   - trigger:
     - platform: time_pattern
       hours: "*"
@@ -232,64 +263,22 @@ template:
     - name: boiler_requires_reheating
       state: "{{ now().strftime('%a') == 'Sat' }}"
   - trigger:
-    - platform: event
-      event_type: my_event_template_reloaded
-    - platform: homeassistant
-      event: start
-    - platform: state
-      entity_id: 
-        - light.kid_bathroom
-        - light.master_bathroom
-        - binary_sensor.kitchen_motion_occupancy
-      to:
-        - 'on'
-        - 'off'
-    - platform: time
-      at: 
-        - "06:00:00"
-        - "07:00:00"
-    - platform: time
-      at: input_datetime.back_home_at
-    - platform: event
-      event_type: timer.finished
-      event_data:
-        entity_id: timer.hot_water_turn_off_after_time_based_on
-    action:
-      - if: 
-        - condition: template
-          value_template: "{{ trigger.platform == 'time' }}"
-        then:
-          - service: timer.start
-            target:
-              entity_id: timer.hot_water_turn_off_after_time_based_on
-    binary_sensor:
-    - name: hot_water_pump_required
-      state: |
-        {{
-          states.light.kid_bathroom.state == 'on' or
-          states.light.master_bathroom.state == 'on' or
-          states.binary_sensor.kitchen_motion_occupancy.state == 'on' or
-          trigger.platform == 'time'
-        }}
-  - trigger:
       - platform: state
         entity_id: 
           - binary_sensor.is_day_cheap_heating_period
           - binary_sensor.is_day_heating_time
+          - binary_sensor.is_sleeping
       - platform: state
         entity_id: group.residents
         for: "00:05:00"
-      - platform: event
-        event_type: sleeping_time_start
-      - platform: event
-        event_type: sleeping_time_end
     sensor:
     - name: heating_preset_mode
       state: |
         {% if 
-          is_state('binary_sensor.is_day_heating_time', 'off') or 
-          is_state('group.residents', 'not_home') or 
-          trigger.platform == 'event' and trigger.event.event_type == 'sleeping_time_start'
+          is_state('group.residents', 'not_home') or (
+            is_state('binary_sensor.is_sleeping', 'on') and
+            is_state('binary_sensor.is_day_heating_time', 'off')
+          )
         %}
           sleep        
         {% elif is_state('binary_sensor.is_day_cheap_heating_period', 'on') %}
@@ -297,27 +286,6 @@ template:
         {% else %}
           home
         {% endif %}
-  - trigger:
-    - platform: state
-      entity_id: 
-        - binary_sensor.is_hot_floor_valves_open
-        - binary_sensor.fireplace_heating_enabled
-        - input_boolean.heating_enabled
-        - sensor.solcast_pv_forecast_forecast_this_hour
-    - platform: time_pattern
-      minutes: "/15"
-    - platform: event
-      event_type: event_template_reloaded
-    binary_sensor:
-    - name: hot_floor_pump_required
-      state: |
-        {{
-          is_state('binary_sensor.is_hot_floor_valves_open', 'on') and (
-            is_state('binary_sensor.fireplace_heating_enabled', 'on') or
-            is_state('input_boolean.heating_enabled', 'on') or
-            float(states('sensor.solcast_pv_forecast_forecast_this_hour'), 0) > 1000 and 10 <= now().hour < 18
-          )
-        }}
   - trigger:
     - platform: time_pattern
       hours: 7
@@ -369,6 +337,12 @@ sensor:
       - sensor.master_wardrobe_climate_temperature
       - sensor.living_room_climate_temperature
       - sensor.entrance_room_climate_temperature
+  - platform: derivative
+    source: input_number.min_heating_temp_diff
+    name: house_min_heating_teamp_diff_rate
+    round: 1
+    unit_time: min
+    time_window: "00:05:00"
 
 climate:
   - platform: generic_thermostat
@@ -376,100 +350,122 @@ climate:
     heater: input_boolean.thermostat_driven_heater_valve_master_bedroom
     target_sensor: sensor.master_bedroom_climate_temperature
     away_temp: 15
-    comfort_temp: 19
-    home_temp: 18
-    sleep_temp: 17
-    precision: 0.1
+    comfort_temp: 22
+    home_temp: 19
+    sleep_temp: 19
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: master_bathroom_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_master_bathroom_hot_floor
     target_sensor: sensor.master_bathroom_climate_temperature
     away_temp: 15
-    comfort_temp: 20
-    home_temp: 19
-    sleep_temp: 17
-    precision: 0.1
+    comfort_temp: 23
+    home_temp: 23
+    sleep_temp: 20
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: cabinet
     heater: input_boolean.thermostat_driven_heater_valve_cabinet
     target_sensor: sensor.cabinet_climate_temperature
     away_temp: 15
-    comfort_temp: 20
+    comfort_temp: 22
     home_temp: 19
-    sleep_temp: 17
-    precision: 0.1
+    sleep_temp: 20
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: kid_small_bedroom
     heater: input_boolean.thermostat_driven_heater_valve_kid_small_bedroom
     target_sensor: sensor.kid_small_bedroom_climate_temperature
     away_temp: 15
     comfort_temp: 20
-    home_temp: 18
-    sleep_temp: 17
-    precision: 0.1
+    home_temp: 19
+    sleep_temp: 19
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: kid_big_bedroom
     heater: input_boolean.thermostat_driven_heater_valve_kid_big_bedroom
     target_sensor: sensor.kid_big_bedroom_climate_temperature
     away_temp: 15
-    comfort_temp: 20
-    home_temp: 18
-    sleep_temp: 17
-    precision: 0.1
+    comfort_temp: 22
+    home_temp: 20
+    sleep_temp: 20
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: kid_bathroom_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_hall_and_small_bathroom
     target_sensor: sensor.kid_bathroom_climate_temperature
     away_temp: 15
-    comfort_temp: 20
-    home_temp: 20
-    sleep_temp: 17
-    precision: 0.1
+    comfort_temp: 23
+    home_temp: 23
+    sleep_temp: 23
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: livingroom
     heater: input_boolean.thermostat_driven_heater_valve_livingroom
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 15
-    comfort_temp: 21
-    home_temp: 19
-    sleep_temp: 17
-    precision: 0.1
+    comfort_temp: 22
+    home_temp: 21
+    sleep_temp: 20
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: livingroom_hotfloor_table
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom1
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 7
-    comfort_temp: 21
-    home_temp: 20
-    sleep_temp: 18
-    precision: 0.1
+    comfort_temp: 23
+    home_temp: 23
+    sleep_temp: 20
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: livingroom_hotfloor_fireplace
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom2
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 7
-    comfort_temp: 21
-    home_temp: 20
-    sleep_temp: 18
-    precision: 0.1
+    comfort_temp: 23
+    home_temp: 23
+    sleep_temp: 19
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: livingroom_hotfloor_exit
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom3
     target_sensor: sensor.living_room_climate_temperature
     away_temp: 10
-    comfort_temp: 21
-    home_temp: 19
-    sleep_temp: 18
-    precision: 0.1
+    comfort_temp: 23
+    home_temp: 23
+    sleep_temp: 19
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: kitchen_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_kitchen_hot_floor
     target_sensor: sensor.kitchen_climate_temperature
     away_temp: 10
-    comfort_temp: 21
-    home_temp: 20
-    sleep_temp: 18
-    precision: 0.1
+    comfort_temp: 23
+    home_temp: 23
+    sleep_temp: 19
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
   - platform: generic_thermostat
     name: entrance_room_hotfloor
     heater: input_boolean.thermostat_driven_heater_valve_hot_floor_entrance_tech_room
@@ -478,8 +474,42 @@ climate:
     comfort_temp: 20
     home_temp: 19
     sleep_temp: 17
-    precision: 0.1
+    precision: 0.5
+    min_cycle_duration:
+      seconds: 180
+
+switch:
+  - platform: template
+    switches:
+      hwc_heating:
+        friendly_name: ГВС нагрів
+        value_template: |
+          {% if is_state('input_boolean.is_main_heater_connected_to_solar', 'on') %}
+            {{ states('input_boolean.hwc_enabled') }}
+          {% else %}
+            {{ states('switch.water_heater_2k') }}
+          {% endif %}
+        availability_template: |
+          {% if is_state('input_boolean.is_main_heater_connected_to_solar', 'on') %}
+            {{ has_value('input_boolean.hwc_enabled') }}
+          {% else %}
+            {{ has_value('switch.water_heater_2k') }}
+          {% endif %}
+        turn_on:
+          service: script.toggle_hwc
+          data:
+            state: true
+        turn_off:
+          service: script.toggle_hwc
+          data:
+            state: false
+
+counter:
+  main_heater_cycle_count:
+    name:  К-сть включень котла при поточні температурі теплоносія (оновлюється раз в декілька хв)
+    initial: 0
+    step: 1
 
 timer:
-  hot_water_turn_off_after_time_based_on:
-    duration: "00:05:00"
+  main_heater_cycle_count_observation:
+    duration: "00:30:00"

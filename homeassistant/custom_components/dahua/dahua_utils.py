@@ -2,8 +2,10 @@
 Various utilities for Dahua cameras
 """
 import json
+import logging
 import re
 
+_LOGGER: logging.Logger = logging.getLogger(__package__)
 
 def dahua_brightness_to_hass_brightness(bri_str: str) -> int:
     """
@@ -68,7 +70,10 @@ def parse_event(data: str) -> list[dict[str, any]]:
         # And we want to put each key/value pair into a dictionary...
         event = dict()
         for key_value in event_block.split(';'):
-            key, value = key_value.split('=')
+            key, value = key_value.split('=', 2)
+            chunks = key_value.split('=')
+            if len(chunks) > 2:
+                _LOGGER.warn(f"Received dahua event which is parsed in more than 2 chunks: {key_value}.split() = {chunks}")
             event[key] = value
 
         # data is a json string, convert it to real json and add it back to the output dic

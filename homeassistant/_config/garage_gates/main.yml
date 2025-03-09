@@ -4,11 +4,6 @@ input_datetime:
     has_date: true
     has_time: true
 
-template:
-  - binary_sensor:
-    - name: garage_gates_right_open_contact
-      state: "{{ is_state('switch.garage_gates_right_open_contact', 'on') }}"
-
 switch:
   - platform: template
     switches:

@@ -25,6 +25,10 @@ input_number:
     min: 0
     max: 100
 
+input_boolean:
+  washing_machine_power_reservation:
+    name: Washing machine power reservation
+
 template:
   - sensor:
     - name: monthly_energy_day_cost
@@ -61,7 +65,10 @@ template:
         {% endif %}
   - trigger:
       - platform: time
-        at: '07:00:00'
+        at: 
+          - '07:00:00'
+          - 07:05:00
+          - 08:00:00
       - platform: time
         at: '23:00:00'
       - platform: homeassistant
@@ -79,7 +86,7 @@ template:
       hours: "*"
       minutes: 55
     - platform: event
-      event_type: my_event_template_reloaded
+      event_type: event_template_reloaded
     - platform: homeassistant
       event: start
     binary_sensor:
@@ -88,31 +95,66 @@ template:
       attributes:
         start_time: "23:00:00"
         end_time: "06:55:00"
+    
+  - trigger:
+    - platform: time_pattern
+      minutes: "/5"
+    - platform: state
+      entity_id:
+        - sensor.power_consumption_voltage_x
+        - sensor.power_consumption_voltage_y
+        - sensor.power_consumption_voltage_z
+    binary_sensor:
+    - name: has_connection_to_main
+      state: | 
+        {% set voltage_states = [
+          states.sensor.power_consumption_voltage_x,
+          states.sensor.power_consumption_voltage_y,
+          states.sensor.power_consumption_voltage_z
+        ]
+        %}
+        {% set is_changed_recently = voltage_states 
+          | map(attribute='last_changed') 
+          | select('>=', now() - timedelta(seconds=10))
+          | list
+          | count > 0
+        %}
+        {% set is_voltage_usable = voltage_states
+          | map(attribute='state')
+          | map('float', 0)
+          | select('<=', 243) 
+          | select('>=', 198) 
+          | list 
+          | count > 0
+        %}
+        
+        {{ is_changed_recently and is_voltage_usable }}
+
   - binary_sensor:
-      - name: has_connection_to_main
-        state: | 
-          {% set ok_phases = [
-            states('sensor.power_consumption_voltage_x'),
-            states('sensor.power_consumption_voltage_y'),
-            states('sensor.power_consumption_voltage_z')
-          ] | map('float', 0) 
-            | select('<=', 242) 
-            | select('>=', 198) 
-            | list 
-            | count 
-          %}
-          {{ ok_phases > 0 }}
       - name: inverter_connected_to_grid
         state: |
           {{ 
-            [
-              states('sensor.power_consumption_voltage_y'), 
-              states('sensor.lux_grid_voltage_live')
-            ] | map('float', 0)
-              | select('>', 0)
-              | list
-              | count > 0
+            states.sensor.power_consumption_voltage_y.last_changed >= now() - timedelta(seconds=10) and
+            float(states('sensor.lux_grid_voltage_live'), 0) > 0
           }}
+
+  - trigger:
+    - platform: state
+      entity_id: sensor.washing_machine_power
+    sensor:
+    - name: washing_machine_state
+      state: >-
+        {% set power = float(states('sensor.washing_machine_power')) %}
+        {% if power == 0 %}
+          0
+        {% elif power >= 500 %}
+          heating_water
+        {% else %}
+          1
+        {% endif %}
+      attributes:
+        changed: "{{ now() }}"
+
 
 
 

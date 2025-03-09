@@ -45,21 +45,36 @@
 #       target:
 #         entity_id: input_boolean.terace_door_open
 
-- id: disable_light_on_leave
+- id: turn_off_lights_when_not_needed
   trigger:
     - platform: state
       entity_id: group.residents
       from: home
       to: not_home
       for: 00:05:00
+    - platform: state
+      entity_id: binary_sensor.is_sleeping
+      from: 'off'
+      to: 'on'
   action:
     - service: switch.turn_off
-      entity_id:
-        - switch.garage_light_outside_2
-        - switch.kid_bathroom
-        - switch.master_bathroom
-        - switch.kitchen_light_main
-        - switch.kitchen_bar
+      target:
+        entity_id:
+          - switch.master_bathroom
+          - switch.kitchen_light_main
+          - switch.kitchen_light_bar
+          - switch.garage_light_outside
+          - switch.main_entrance_outside_light
+          - switch.garage_light_inside_l1
+          - switch.garage_light_inside_l2
+          - switch.garage_yard_light
+          - switch.basement_light
+    - service: light.turn_off
+      target:
+        entity_id:
+          - light.kid_bathroom
+          - light.kitchen_led_light
+        
 
 - id: duplicate_persistent_notification_to_telegram
   trigger:
@@ -121,29 +136,13 @@
   alias: Solcast_update
   description: New API call Solcast
   trigger:
-    - platform: sun
-      event: sunrise
-    - platform: sun
-      event: sunset
     - platform: time
-      at: 
-        - '10:00:00'
-        - '11:00:00'
-        - '13:00:00'
-        - '15:00:00'
-        - '16:00:00'
-        - '17:00:00'
-        - '18:00:00'
-  condition:
-  - condition: and
-    conditions:
-      - condition: sun
-        before: sunset
-        after: sunrise
-      - condition: template
-        value_template: |
-          {% set limit = float(states('sensor.solcast_pv_forecast_api_limit'), 0) %}
-          {{ float(states('sensor.solcast_pv_forecast_api_used'), 0) < limit }}
+      at: '22:00:00'
+  # condition:
+  #   - condition: template
+  #     value_template: |
+  #       {% set limit = float(states('sensor.solcast_pv_forecast_api_limit'), 0) %}
+  #       {{ float(states('sensor.solcast_pv_forecast_api_used'), 0) < limit }}
   
   action:
   - delay: 
@@ -151,7 +150,6 @@
       seconds: "{{ range(0, 59)|random|int }}"
   - service: solcast_solar.update_forecasts
     data: {}
-  mode: single
 
 - id: count_number_of_switches
   mode: parallel
@@ -181,68 +179,36 @@
           target:
             entity_id: "{{ counter_entity_id }}"
 
-- alias: Template reloaded
-  mode: single
-  trigger:
-    - platform: event
-      event_type: event_template_reloaded
-  action:
-    - event: my_event_template_reloaded
-      event_data: {}
-
 - id: family_wake_up
   trigger:
     - platform: time
-      at: ["07:00:00", "16:30:00"]
+      at: "07:00:00"
   action:
     - event: sleeping_time_end
 
 - id: leave_home_on_events_sequence
   mode: single
   trigger:
-    platform: state
-    entity_id: binary_sensor.is_main_door_unlocked
-    from: 'on'
-    to: 'off'
+    platform: event
+    event_type: yard_crossed_line
+    event_data:
+      name: yard_gates
+      object_type: Vehicle
+      direction: RightToLeft
   condition:
     - condition: template
-      value_template: "{{ is_state('group.residents', 'home') }}"
+      value_template: |
+        {{ 
+          is_state('group.residents', 'home') and
+          is_state('binary_sensor.is_terace_door_unlocked', 'off') and 
+          is_state('binary_sensor.is_main_door_unlocked', 'off') 
+        }}
   action:
     - wait_for_trigger:
         platform: event
-        event_type: yard_crossed_line
-        event_data: 
-          name: house_near_stairs
-          direction: LeftToRight
-      timeout: "00:05"
-      continue_on_timeout: false
-    - wait_template: "{{ is_state('binary_sensor.camera_house_entrance_smart_motion_human', 'on') }}"
-      timeout: "00:00:30"
-      continue_on_timeout: false
-    - wait_for_trigger:
-        platform: event
-        event_type: yard_crossed_line
+        event_type: yard_crossed_region
         event_data:
-          name: garage_home_direction
-          direction: LeftToRight
-          object_type: Human
-      timeout: "00:05:00"
-      continue_on_timeout: false
-    - wait_for_trigger:
-        platform: event
-        event_type: yard_crossed_line
-        event_data:
-          name: yard_gates
-          direction: LeftToRight
-          object_type: Human
-      timeout: "00:05:00"
-      continue_on_timeout: false
-    - wait_for_trigger:
-        platform: event
-        event_type: yard_crossed_line
-        event_data:
-          name: yard_gates
-          direction: LeftToRight
+          name: garage_car_arrived
           object_type: Vehicle
       timeout: "00:10:00"
       continue_on_timeout: false
@@ -314,14 +280,112 @@
 #         | count
 #       }}
 
-- id: keep_last_turned_off_at_for_water_heater_2k
+# - id: keep_last_turned_off_at_for_water_heater_2k
+#   trigger:
+#     platform: state
+#     entity_id: switch.water_heater_2k
+#     to: 'off'
+#   action:
+#     - service: input_datetime.set_datetime
+#       target:
+#         entity_id: input_datetime.last_water_heater_2k_turned_off_at
+#       data:
+#         datetime: "{{ now() }}"
+
+- id: notify_about_internet_loss
+  alias: Notify about Intenet loss
+  trigger:  
+    - platform: state
+      entity_id: sensor.internet_ping_time
+      to: ['unknown', 'unavailable']
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "⚠ - Warning!"
+        message: |
+          Lost Internet at {{ now() }}
+
+- id: close_curtains_when_sleeping
+  alias: Close curtains on sleep
   trigger:
     platform: state
-    entity_id: switch.water_heater_2k
-    to: 'off'
+    entity_id: binary_sensor.is_sleeping
+    to: 'on'
+  condition:
+    - condition: template
+      value_template: "{{ float(states('sensor.garage_light_sensor_illuminance_lux')) > 500 }}"
   action:
-    - service: input_datetime.set_datetime
+    - service: cover.close_cover
       target:
-        entity_id: input_datetime.last_water_heater_2k_turned_off_at
+        entity_id:
+          - cover.kid_big_outside_curtain
+          - cover.master_bedroom_outside_curtain
+
+- id: back_to_home_from_carplay
+  alias: Back to home from car
+  trigger:
+    platform: event
+    event_type: ios.action_fired
+    event_data:
+      actionID: back_home_from_car
+      sourceDevicePermanentID: !secret ios_actions_device_id
+  condition:
+    - condition: template
+      # check that my phone is in local network
+      value_template: |
+        {{ 
+          is_state('binary_sensor.seen_vehicle_near_gates', 'on') 
+        }}
+  action:
+    - service: device_tracker.see
       data:
-        datetime: "{{ now() }}"
+        dev_id: serhii_phone_shortcut
+        location_name: home
+    - service: switch.turn_on
+      target:
+        entity_id: switch.garage_gates_left_open
+
+- id: auto_protection_on_leaving
+  alias: Automatically protect house on leaving
+  trigger:
+    platform: state
+    entity_id: group.residents
+    to: not_home
+  action:
+    - if: 
+      - condition: template
+        value_template: "{{ is_state('binary_sensor.is_terace_door_unlocked', 'on') }}"
+      then:
+      - service: cover.close_cover
+        target:
+          entity_id: cover.terrace_outside_curtain
+    - if:
+      - condition: template
+        value_template: "{{ is_state('binary_sensor.master_bedroom_window_open_contact', 'on') }}"
+      then:
+      - service: cover.close_cover
+        target:
+          entity_id: cover.master_bedroom_outside_curtain
+    
+- id: auto_unprotect_on_come_home
+  alias: Automatically unprotect when come home
+  trigger:
+    - platform: state
+      entity_id:
+        - binary_sensor.is_main_door_unlocked
+        - binary_sensor.is_terace_door_unlocked
+      from: "off"
+      to: "on"
+  condition:
+    - condition: template
+      value_template: | 
+        {% set is_just_arrived = now().timestamp() - as_datetime(states('input_datetime.back_home_at')).timestamp() <= 15 * 60 %}
+        {{ is_just_arrived and is_state('binary_sensor.livingroom_tv_consumes_power', 'off') and
+          not is_state('input_select.curtain_outside_mode', 'open')
+        }}
+  action: 
+    - service: input_select.select_option
+      data:
+        option: open
+      target:
+        entity_id: input_select.curtain_outside_mode

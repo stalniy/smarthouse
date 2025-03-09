@@ -69,6 +69,7 @@ async def async_setup(hass: HomeAssistant, config: Config):
       try:
         async for raw_message in websocket:
           message = json.loads(str(raw_message))
+          _LOGGER.debug("Websocket message received: {}", message)
           event_type = _get_config_value(item_config, 'event_type', message, default='')
           if event_type:
             event_data = _get_config_value(item_config, 'event_data', message, parse=True, default=dict())

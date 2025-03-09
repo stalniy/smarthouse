@@ -45,12 +45,19 @@
           {{"\U0001F31A"}} Ніч - {{ states('sensor.monthly_energy_night') }} КВт/год ({{ states('sensor.monthly_energy_night_cost') }} грн)
 
 - id: notify_when_main_power_lost
+  alias: Notify when grid power lost
+  mode: restart
   trigger:  
-    - platform: state
-      entity_id: binary_sensor.inverter_connected_to_grid
-      to: 
-        - "on"
-        - "off"
+    # - platform: state
+    #   entity_id: binary_sensor.has_connection_to_main
+    #   from: 'off'
+    #   to: 'on'
+    #   for: "00:05:00"
+    # - platform: state
+    #   entity_id: binary_sensor.has_connection_to_main
+    #   from: 'on'
+    #   to: 'off'
+    #   for: "00:05:00"
     - platform: event
       event_type: external_command
       event_data:
@@ -59,12 +66,37 @@
     - event: important_home_event
       event_data:
         message: | 
-          {% if is_state('binary_sensor.inverter_connected_to_grid', 'on') %}
-            З'явилась мережа.
+          {% if is_state('binary_sensor.has_connection_to_main', 'on') %}
+            💡 Main electricity available.
           {% else %}
-            Зникла мережа.
+            💥 Lost electricity.
           {% endif %}
-          Напруга:
-          1. {{ states('sensor.power_consumption_voltage_x') }} ({{ states('sensor.power_consumption_power_x') }})
-          2. {{ states('sensor.power_consumption_voltage_y') }} ({{ states('sensor.power_consumption_power_y') }})
-          3. {{ states('sensor.power_consumption_voltage_z') }} ({{ states('sensor.power_consumption_power_z') }})
+          Voltage:
+          1. {{ states('sensor.power_consumption_voltage_x') }}V ({{ states('sensor.power_consumption_power_x') }}W)
+          2. {{ states('sensor.power_consumption_voltage_y') }}V ({{ states('sensor.power_consumption_power_y') }}W)
+          3. {{ states('sensor.power_consumption_voltage_z') }}V ({{ states('sensor.power_consumption_power_z') }}W)
+
+- id: toggle_washing_machine_power_reservation
+  alias: Toggle washing machine power reservation
+  trigger: 
+    - platform: numeric_state
+      entity_id: sensor.washing_machine_power
+      above: 1
+      variables:
+        reserve_power: 'on'
+    - platform: numeric_state
+      entity_id: sensor.washing_machine_power
+      below: 600
+      variables:
+        reserve_power: 'off'
+    - platform: state
+      entity_id: sensor.washing_machine_power
+      to: '0'
+      variables:
+        reserve_power: 'off'
+  action:
+    - service_template: "input_boolean.turn_{{ reserve_power }}"
+      target:
+        entity_id: input_boolean.washing_machine_power_reservation
+
+      

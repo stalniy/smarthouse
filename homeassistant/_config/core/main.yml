@@ -14,10 +14,6 @@ input_datetime:
     name: Лягли спати
     has_date: true
     has_time: true
-  last_water_heater_2k_turned_off_at:
-    name: Останній час вимкнення water_heater_2k
-    has_date: true
-    has_time: true
 
 input_text:
   serhii_phone_shortcut:
@@ -70,19 +66,28 @@ sensor:
 
 template:
   - binary_sensor:  
-    - name: is_dark
+    - name: is_dark_outside
       state: |
-        {{ 
-          is_state('sun.sun', 'below_horizon') or
-          now().timestamp() + 15 * 60 >= as_datetime(states('sensor.sun_next_setting')).timestamp() or
-          now().hour >= 22 or now().hour < 1
-        }}
+        {% if has_value('sensor.garage_light_sensor_illuminance_lux') %}
+          {{ float(states('sensor.garage_light_sensor_illuminance_lux')) < 25 }}
+        {% elif has_value('sun.sun') %} 
+          {{ 
+            is_state('sun.sun', 'below_horizon') or
+            now() + timedelta(minutes=15) >= as_datetime(states('sensor.sun_next_setting'))
+          }}
+        {% else %}
+          {{ now().hour >= 22 or now().hour <= 6 }}
+        {% endif %}
     - name: is_main_door_unlocked
       device_class: lock
       state: "{{ is_state('binary_sensor.main_entrance_lock_contact', 'off') }}"
     - name: is_terace_door_unlocked
       device_class: lock
-      state: "{{ is_state('binary_sensor.terace_door_lock_water_leak', 'off') }}"
+      state: "{{ is_state('binary_sensor.terace_door_lock_water_leak', 'on') }}"
+    - name: seen_vehicle_near_gates
+      state: "{{ is_state('binary_sensor.camera_garage_gates_smart_motion_vehicle', 'on') }}"
+      delay_off:
+        minutes: 5
   - select:
     - name: curtain_outside_mode
       state: |
@@ -129,7 +134,7 @@ template:
       hours: "*"
       minutes: 0
     - platform: event
-      event_type: my_event_template_reloaded
+      event_type: event_template_reloaded
     binary_sensor:
       name: is_sleeping
       state: |
@@ -146,14 +151,26 @@ template:
       hours: "*"
       minutes: 0
     - platform: event
-      event_type: my_event_template_reloaded
+      event_type: event_template_reloaded
     sensor:
     - name: solar_forecast
       unit_of_measurement: "kW"
       state_class: measurement
       state: |
-        {% set last_polled_at = as_datetime(states('sensor.solcast_pv_forecast_api_last_polled')) %}
-        {{ float(states('sensor.solcast_pv_forecast_forecast_tomorrow') if now().hour >= 23 or now().day != last_polled_at.day else states('sensor.solcast_pv_forecast_forecast_today'), 0) }}
+        {{ float(states('sensor.solcast_pv_forecast_forecast_today'), 0) }}
+
+  - trigger:
+    # - platform: time_pattern
+    #   minutes: "/1"
+    - platform: state
+      entity_id: binary_sensor.kitchen_motion_occupancy
+    binary_sensor:
+    - name: kitchen_occupancy
+      state: |
+        {{ 
+          is_state('binary_sensor.kitchen_motion_occupancy', 'on')
+        }}
+    
 
 command_line:
   - switch:
@@ -170,6 +187,15 @@ command_line:
       state_class: measurement
       command: "cat /sys/class/power_supply/BAT1/capacity"
       unit_of_measurement: "%"
+  - sensor:
+      name: internet_ping_time
+      state_class: measurement
+      command_timeout: 10
+      command: |
+        ping -q -c 1 -w 1 95.158.22.5 | grep -Po 'round-trip min/avg/max = \K\d+(\.\d+)'
+      unit_of_measurement: ms
+      value_template: "{{ value }}"
+      scan_interval: 5
 
 automation: !include ./automations.yml
 script: !include ./script.yml

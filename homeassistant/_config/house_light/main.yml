@@ -37,27 +37,27 @@ automation:
       #     process_trigger: "{{ trigger.payload_json['vibration'] == true and is_state('group.residents', 'home') }}"
       #     new_state: "on"
       - platform: state
-        entity_id: binary_sensor.kitchen_motion_occupancy
+        entity_id: binary_sensor.kitchen_occupancy
         to: 'on'
         variables:
           new_state: |
             {{ 
-              is_state('switch.kitchen_additional_light', 'on') or
-              is_state('light.kitchen_light', 'on') or
-              is_state('switch.entrance_room_light', 'on') or
-              float(states('sensor.entrance_room_motion_illuminance_lux'), 0) <= 1
+              is_state('light.kitchen_led_light', 'on') or
+              is_state('switch.kitchen_light_main', 'on') or
+              float(states('sensor.kitchen_light_sensor_illuminance_lux'), 0) <= 75
             }}
       - platform: state
-        entity_id: binary_sensor.kitchen_motion_occupancy
+        entity_id: binary_sensor.kitchen_occupancy
         to: 'off'
         for: "{{ '00:01:00' if is_state('binary_sensor.is_sleeping', 'off') else '00:00:10' }}"
         variables:
           new_state: false
       - platform: numeric_state
-        entity_id: sensor.entrance_room_motion_illuminance_lux
-        below: 1
+        entity_id: sensor.kitchen_light_sensor_illuminance_lux
+        below: 75
+        above: 75
         variables:
-          new_state: "{{ is_state('binary_sensor.kitchen_presence', 'on') }}"
+          new_state: "{{ is_state('binary_sensor.kitchen_presence', 'on') and float(trigger.to_state.state, 0) <= 75  }}"
     variables: 
       device_state: "{{ 'on' if new_state else 'off' }}"
     condition: 
@@ -65,18 +65,40 @@ automation:
         entity_id: input_boolean.disable_auto_light
         state: 'off'
     action:
-      - if:
-        - condition: state
-          entity_id: binary_sensor.is_sleeping
-          state: "off"
-        then: 
-        - service_template: "light.turn_{{ device_state }}"
-          target:
-            entity_id: light.kitchen_light
-        else:
-        - service_template: "switch.turn_{{ device_state }}"
-          target:
-            entity_id: switch.kitchen_additional_light
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: "{{ is_state('binary_sensor.is_sleeping', 'off') }}"
+          sequence:
+          - service_template: "switch.turn_{{ device_state }}"
+            target:
+              entity_id: switch.kitchen_light_main
+        - conditions:
+          - condition: template
+            value_template: "{{ device_state == 'on' }}"
+          sequence:
+          - service_template: "light.turn_{{ device_state }}"
+            data:
+              brightness: 3
+            target:
+              entity_id: light.kitchen_led_light
+        default:
+          - service: "light.turn_off"
+            target:
+              entity_id: light.kitchen_led_light
+
+  - id: toggle_kitchen_led_light
+    alias: Toggle kitchen led light on phisical switch
+    trigger:
+      platform: state
+      entity_id: sensor.kitchen_led_light_toggle_action
+      to: toggle
+    action:
+    - service: light.toggle
+      data:
+        brightness: 254
+      target:
+        entity_id: light.kitchen_led_light
 
   # - id: toggle_kitchen_bar_light
   #   alias: Kitchen bar light control
@@ -111,9 +133,11 @@ automation:
 
   - id: set_brightness_level
     alias: Set brightness level
+    mode: restart
     trigger:
       - platform: state
-        entity_id: binary_sensor.is_sleeping
+        entity_id: light.kid_bathroom
+        to: 'on'
     variables:
       brightness_level: |
         {{ 2 if is_state('binary_sensor.is_sleeping', 'on') else 100 }}
@@ -128,15 +152,19 @@ automation:
             }}
         target:
           entity_id: light.kid_bathroom
-      - delay: '00:00:01'
-      - service: light.turn_off
-        target:
-          entity_id: light.kid_bathroom
 
   - id: show_red_map_on_air_attack
+    mode: restart
+    alias: Red leds on Air attack
     trigger:
       - platform: state
         entity_id: binary_sensor.m_irpin_ta_irpinska_teritorialna_gromada_air
+        from: 'on'
+        to: 'off'
+      - platform: state
+        entity_id: binary_sensor.m_irpin_ta_irpinska_teritorialna_gromada_air
+        from: 'off'
+        to: 'on'
       - platform: state
         entity_id: group.residents
     variables:
@@ -146,13 +174,19 @@ automation:
         }}
       map_boolean_state: "'on' if is_turned_on else 'off'"
       danger_color: [255, 0, 24]
+      brightness: |
+        {% if is_turned_on %}
+          {{ 10 if is_state('binary_sensor.is_sleeping', 'on') else 80 }}
+        {% else %}
+          0
+        {% endif %}
     action:
       - service: light.turn_on
         target:
           entity_id: light.cabinet_map_light
         data:
           rgb_color: "{{ danger_color if is_turned_on else [2, 250, 240] }}"
-          brightness_pct: 90
+          brightness_pct: "{{ brightness | int }}"
       - if: 
         - condition: template
           value_template: "{{ not is_turned_on }}"
@@ -165,14 +199,31 @@ automation:
           entity_id: light.livingroom_tv_light
         data:
           rgb_color: "{{ danger_color if is_turned_on else [245, 194, 17] }}"
-          brightness_pct: 90
+          brightness_pct: "{{ brightness | int }}"
       - if: 
         - condition: template
           value_template: "{{ not is_turned_on and is_state('switch.livingroom_tv', 'off') }}"
         then:
-          - service: light.turn_on
-            data:
-              brightness: 0
+          - delay: "00:00:02"
+          - service: light.turn_off
             target:
               entity_id: light.livingroom_tv_light
 
+  - id: toggle_livingroom_table_light
+    alias: "Ввімкнути світло над столом у вітальні"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: sensor.livingroom_table_button_action
+        to: single
+    action:
+      - service: switch.toggle
+        target:
+          entity_id: switch.livingroom_table_light_toggle
+      - if: 
+          - condition: template
+            value_template: "{{ is_state('binary_sensor.is_dark_outside', 'on') }}"
+        then:
+          - service: cover.open_cover
+            target:
+              entity_id: cover.terrace_tulle_curtain

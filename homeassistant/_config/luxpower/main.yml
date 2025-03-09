@@ -55,7 +55,7 @@ template:
       state_class: measurement
       unit_of_measurement: h
       state: |
-        {% set full_capacity = 4800 %}
+        {% set full_capacity = 4600 %}
         {% set current_battery_percentage = float(states('sensor.lux_battery'), 0) %}
         {% set current_power_consumption = float(states('sensor.lux_battery_discharge_live'), 0) %}  
         {% set min_battery_percentage = float(states('number.lux_off_grid_discharge_cut_off_soc'), 0) if is_state('binary_sensor.inverter_connected_to_grid', 'off') else float(states('number.lux_on_grid_discharge_cut_off_soc'), 0) %}
@@ -87,12 +87,31 @@ template:
           is_state('binary_sensor.lux_must_start_ac_charging', 'on')
         }}
     - name: lux_has_solar_output_live
-      state: "{{ float(states('sensor.lux_solar_output_live'), 0) > 0 }}"
+      state: "{{ float(states('sensor.lux_solar_output_live'), 0) > 100 }}"
     - name: lux_ac_force_battery_charging
       state: >-
         {{ not is_state('time.lux_ac_charge_start3', '00:00:00') and 
           is_state('select.lux_ac_charge_type', 'Time') 
         }}
+    - name: inverter_critical_power_usage
+      state: >-
+        {% set home_consumption = float(states('sensor.lux_home_consumption_live'), 0) %}
+        {% set has_solar = is_state('binary_sensor.lux_has_solar_output_live', 'on') %}
+        {% set has_grid = is_state('binary_sensor.inverter_connected_to_grid', 'on') %}
+        
+        {% if has_grid %}
+          {{ home_consumption > 6000 }}
+        {% elif has_solar and float(states('sensor.lux_battery'), 0) > 50 %}
+          {{ home_consumption > 5000 }}
+        {% else %}
+          {{ home_consumption > 4500 }}
+        {% endif %}
+    
+    - name: lux_battery_lower_needed_ac_charge_level
+      state: >-
+        {{ float(states('sensor.lux_battery'), -1) <= float(states('number.lux_ac_battery_charge_level', 0)) }}
+
+
   - trigger:
     - platform: state
       entity_id: 
@@ -112,6 +131,7 @@ template:
               (now() + timedelta(hours=hours_to_charge)) >= today_at('6:30')
             }}
           {% endif %}
+      
   - sensor:
     - name: lux_ac_charge_battery_level_to
       unit_of_measurement: "%"
@@ -143,18 +163,48 @@ template:
     - platform: numeric_state 
       entity_id: sensor.lux_battery
       below: 20
+    - platform: event
+      event_type: event_template_reloaded
     binary_sensor:
       - name: lux_at_min_battery_level
         state: |
           {% set min_level = 10 %}
-          {% if 4 <= now().month < 10 %}
-            {% set min_level = 20 if 8 <= now().hour <= 14 else 40 %}
+          {% if now().hour >= 18 or float(states('sensor.solar_forecast'), 0) < 15 %}
+            {% set min_level = 70 %}
           {% else %}
-            {% set min_level = 40 if 9 <= now().hour <= 12 else 60 %}
+            {% if 4 <= now().month < 9 %}
+              {% set min_level = 20 if 8 <= now().hour <= 14 else 40 %}
+            {% else %}
+              {% set min_level = 40 if 9 <= now().hour <= 13 else 60 %}
+            {% endif %}
           {% endif %}
           
           {{ float(states('sensor.lux_battery'), 0) <= min_level }}
-    
+
+  - trigger:
+    - platform: numeric_state
+      entity_id: sensor.lux_power_from_grid_live
+      above: 1000
+    - platform: numeric_state
+      entity_id: sensor.lux_power_from_grid_live
+      below: 999
+    - platform: numeric_state
+      entity_id: sensor.lux_power_from_grid_live
+      above: 3000
+    - platform: numeric_state
+      entity_id: sensor.lux_power_from_grid_live
+      below: 2999
+    - platform: event
+      event_type: event_template_reloaded
+    binary_sensor:
+    - name: lux_power_grid_overused
+      state: |
+        {% if 4 <= now().month < 9 %}
+          {{ float(states('sensor.lux_power_from_grid_live'), 0) > 1000 }} 
+        {% else %}
+          {{ float(states('sensor.lux_power_from_grid_live'), 0) > 3000 }} 
+        {% endif %}         
+
   - button:
     - unique_id: reconnect_to_luxpower
       name: Reconnect to Luxpower
@@ -162,4 +212,17 @@ template:
       press:
         service: luxpower.luxpower_reconnect
         data:
-          dongle: "{{ state_attr('sensor.lux_data_received_time', 'dongle') }}"  
+          dongle: !secret lux_dongle_serial
+          # dongle: "{{ state_attr('sensor.lux_data_received_time', 'dongle') }}"  
+    - unique_id: force_ac_charge
+      name: |
+        {% if is_state('binary_sensor.lux_ac_force_battery_charging', 'off') %}
+          Force AC charging (2h)
+        {% else %}
+          Stop AC charing
+        {% endif %}
+      press:
+        service: script.lux_ac_force_charging
+        data: 
+          state: |
+            {{ is_state('binary_sensor.lux_ac_force_battery_charging', 'off') }}

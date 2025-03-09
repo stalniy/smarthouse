@@ -4,9 +4,13 @@ template:
       state: |
         {{
           is_state('group.residents', 'home') and
-          is_state('binary_sensor.is_dark', 'on') and
-          is_state('binary_sensor.is_sleeping', 'off') and 
-          is_state('binary_sensor.is_main_door_unlocked', 'on')
+          is_state('binary_sensor.is_dark_outside', 'on') and
+          is_state('binary_sensor.is_sleeping', 'off') and (
+            is_state('binary_sensor.is_main_door_unlocked', 'on') or
+            is_state('binary_sensor.is_terace_door_unlocked', 'on') or
+            is_state('switch.garage_gates_left_open', 'on') or 
+            is_state('switch.garage_gates_right_open', 'on') 
+          )
         }}
     - name: main_entrance_outside_light_needed
       state: |

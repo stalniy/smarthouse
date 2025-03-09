@@ -24,7 +24,7 @@ then select area and you will see coordinates in debug window
 
 - fireplace (27114,26750,30029,28021)
 - terrace_exit (24343,25536,25500,28564)
-- livingroom_entertainment (24329,25379,27971,28607)
+- livingroom_entertainment (24300,25550,27933,28650)
 - wardrobe point (29467,30183)
 - kitchen point (33133,25150)
 - tech room point (32367,28183)

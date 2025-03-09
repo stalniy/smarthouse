@@ -1,1 +1,11 @@
-[]
+- id: '1733456817995'
+  alias: Recurring Todo Task
+  description: ''
+  use_blueprint:
+    path: bakinbits/recurring_todo_task.yaml
+    input:
+      tasklist: todo.home_maintenance
+      taskname: Поміняти фільтр на воду
+      taskdescription: Замінити фільтр на воду в будинку
+      duration: 90
+      warn: 14

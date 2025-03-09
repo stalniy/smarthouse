@@ -1,21 +1,46 @@
+climate:
+  - platform: generic_thermostat
+    name: doghouse
+    heater: switch.doghouse_hotfloor
+    target_sensor: sensor.doghouse_climate_temperature
+    min_temp: 0
+    max_temp: 20
+    cold_tolerance: 2
+    home_temp: 7
+    precision: 0.5
+
 automation:
-  - id: doghouse_heating
+  - id: manage_doghouse_hotfloor
+    alias: Manage doghouse hotfloor
     trigger:
-      - platform: numeric_state
-        entity_id: sensor.doghouse_climate_temperature
-        below: 0
-        variables: 
-          heating_state: 'on'
-      - platform: numeric_state
-        entity_id: sensor.doghouse_climate_temperature
-        above: 5
-        variables: 
-          heating_state: 'off'
-    condition:
-      - condition: state
+      - platform: state
         entity_id: group.residents
-        state: home
-    action: 
-      - service_template: "switch.turn_{{ heating_state }}" 
+        from: home
+        to: not_home
+      - platform: state
+        entity_id: binary_sensor.is_dark_outside
+        from: "off"
+        to: "on"
+      - platform: numeric_state
+        entity_id: sensor.doghouse_climate_temperature
+        below: 1
+      - platform: numeric_state
+        entity_id: sensor.doghouse_climate_temperature
+        above: 8
+    variables:
+      hvac_mode: |
+        {% set is_enabled = is_state('group.residents', 'home') and
+          (
+            0 <= float(states('sensor.doghouse_climate_temperature'), 0) < 7 and 
+            is_state('binary_sensor.is_dark_outside', 'on') or
+            float(states('sensor.doghouse_climate_temperature'), 0) < 0
+          )
+        %}
+
+        {{ "heat" if is_enabled else "off" }}
+    action:
+      - service: climate.set_hvac_mode
+        data:
+          hvac_mode: "{{ hvac_mode }}"
         target:
-          entity_id: switch.doghouse_hotfloor
+          entity_id: climate.doghouse

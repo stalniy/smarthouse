@@ -20,18 +20,31 @@
     - platform: state
       entity_id: group.residents
       to: not_home
+      variables:
+        should_close: true
     - platform: event
       event_type: external_command
       event_data:
         command: /close_garage_gates
+      variables:
+        should_close: true
     - platform: state
-      entity_id: binary_sensor.is_main_door_unlocked
+      entity_id: 
+        - binary_sensor.is_main_door_unlocked
+        - binary_sensor.is_terace_door_unlocked
       from: 'off'
       to: 'on'
-    - platform: state
-      entity_id: binary_sensor.is_terace_door_unlocked
-      from: 'off'
-      to: 'on'
+      variables:
+        should_close: |
+          {{ 
+            now().timestamp() - state_attr('input_datetime.back_home_at', 'timestamp') < 30 * 60 and (
+              is_state('binary_sensor.is_main_door_unlocked', 'on') or
+              is_state('binary_sensor.is_terace_door_unlocked', 'on')
+            )
+          }}
+  condition:
+    - condition: template
+      value_template: "{{ should_close }}"
   action:
     - service: switch.turn_off
       entity_id: 
@@ -48,7 +61,7 @@
         - binary_sensor.garage_gates_right_open_contact
       to: 'off'
       variables:
-        power_off_at: "{{ now() + timedelta(seconds=10) }}"
+        power_off_at: "{{ now() + timedelta(minutes=5) }}"
     - platform: state
       entity_id: 
         - binary_sensor.garage_gates_left_open_contact
@@ -198,3 +211,29 @@
 #     - service: switch.turn_on
 #       target:
 #         entity_id: switch.garage_gates_left_open
+
+- id: toggle_light_in_garage
+  trigger: 
+    - platform: state
+      entity_id: 
+        - binary_sensor.garage_gates_left_open_contact
+        - binary_sensor.garage_gates_right_open_contact
+      from: ['on', 'off']
+      to: ['on', 'off']
+  variables:
+    is_turned_on: |
+      {{ 
+        is_state('binary_sensor.garage_gates_left_open_contact', 'on') or
+        is_state('binary_sensor.garage_gates_right_open_contact', 'on')
+      }}
+  condition:
+    - condition: template
+      value_template: |
+        {{
+          float(states('sensor.garage_light_sensor_illuminance_lux'), 0) < 100
+          or not is_turned_on
+        }}
+  action: 
+    - service_template: switch.turn_{{ 'on' if is_turned_on else 'off' }}
+      target:
+        entity_id: switch.garage_light_inside_l2

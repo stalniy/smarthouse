@@ -17,6 +17,7 @@ toggle_garage_gate:
   variables:
     open_contact_entity_id: "binary_sensor.garage_gates_{{ gate }}_open_contact"
     expected_state: "{{ 'on' if state else 'off' }}"
+    toggle_service: "switch.turn_{{ 'on' if is_state(open_contact_entity_id, 'off') else 'off' }}"
     power_switch_entity_id: "switch.garage_gates_{{ gate }}_power"
   sequence:
     - condition: template
@@ -29,24 +30,9 @@ toggle_garage_gate:
           target:
             entity_id: "{{ power_switch_entity_id }}"
         - delay: "00:00:04"
-    - service: switch.toggle
+    - service_template: "{{ toggle_service }}"
       target:
         entity_id: "switch.garage_gates_{{ gate }}_trigger"
-    - if: 
-      - condition: template
-        value_template: "{{ gate == 'right' }}"
-      then:
-      - delay:
-          milliseconds: 300
-      - service: switch.toggle
-        target:
-          entity_id: "switch.garage_gates_right_trigger"
-      - condition: state
-        entity_id: switch.garage_gates_right_trigger
-        state: 'on'
-      - service: switch.turn_off
-        target:
-          entity_id: "switch.garage_gates_right_trigger"
   mode: parallel
   icon: mdi:garage-variant
 

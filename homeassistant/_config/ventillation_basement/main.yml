@@ -1,0 +1,31 @@
+automation:
+- id: ventillation_basement
+  trigger: 
+    - platform: sun
+      event: sunrise
+      offset: "00:30:00"
+      variables:
+        switch_state: 'off'
+    - platform: sun
+      event: sunset
+      offset: "00:30:00"
+      variables:
+        switch_state: 'on'
+    - platform: numeric_state
+      entity_id: sensor.basement_climate_temperature
+      below: 5
+      variables:
+        switch_state: 'off'
+  condition:
+    - condition: template
+      value_template: |
+        {{ 
+          switch_state == 'off' and is_state('switch.basement_fan', 'on') or
+          float(states('sensor.basement_climate_temperature'), 20) > 6
+        }}
+  action: 
+    - service_template: "switch.turn_{{ switch_state }}"
+      target:
+        entity_id: switch.basement_fan
+
+    
