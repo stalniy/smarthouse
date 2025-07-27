@@ -1,5 +1,5 @@
 export const base_config = {
-  inverter_count: null,
+  inverter_count: 1,
   parallel: {
     average_voltage: false,
     parallel_first: true,
@@ -19,6 +19,7 @@ export const base_config = {
   grid_flow: {
     is_used: false,
     entities: [],
+    reverse: false,
   },
   lux_dongle: {
     is_used: false,
@@ -75,6 +76,31 @@ export const base_config = {
     is_used: false,
     entities: [],
   },
+  title: "",
+  temp: {
+    is_used: false,
+    entities: [],
+  }
+};
+
+export const stub_config = {
+  inverter_count: 1,
+  battery_soc: {
+    entities: [],
+  },
+  battery_flow: {
+    entities: [],
+  },
+  home_consumption: {
+    entities: [],
+  },
+  grid_flow: {
+    entities: [],
+    reverse: false,
+  },
+  lux_dongle: {
+    values: [],
+  }
 };
 
 export function getBatteryImage(battery_soc) {

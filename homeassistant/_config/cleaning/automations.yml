@@ -94,7 +94,7 @@
               entity_id: group.residents
               state: not_home
             - condition: template
-              value_template: "{{ force_clean is defined and force_clean }}"
+              value_template: "{{ force_clean is defined and force_clean or trigger.platform is none }}"
               alias: Force clean
           alias: Нас нема вдома або підтверджене прибирання
       then:
@@ -126,21 +126,10 @@
           then:
             - alias: Очікуємо поки робот зарядиться
               wait_template: |
-                {{ states('vacuum.bruce') == 'docked' and float(states('sensor.roborock_s7_battery'), 0) >= 60 }}
+                {{ states('vacuum.bruce') == 'docked' and float(states('sensor.roborock_s7_battery'), 0) >= 80 }}
               timeout: "01:30:00"
-            - service: script.vacuum_clean
+            - service: script.vacuum_mop_rooms_to_clean_today
               alias: Мити підлогу
-              data:
-                rooms: "{{ states('sensor.rooms_to_clean_today') | from_json }}"
-                fan_speed: 'off'
-                mop_intensity: custom
-            - service: script.vacuum_clean
-              alias: Мити вхідну кімнату
-              data: 
-                rooms: [entrance_room]
-                fan_speed: 'off'
-                mop_intensity: intense
-                mop_mode: deep_plus
         
       else:
         - event: important_home_event
@@ -167,3 +156,18 @@
 #         entity_id: vacuum.bruce
 #       data:
 #         fan_speed: quiet
+
+- id: clean_rooms
+  alias: Clean rooms
+  trigger:
+    - platform: event
+      event_type: external_command
+      event_data:
+        command: /clean_rooms
+  action:
+    - service: script.vacuum_clean
+      data:
+        rooms: "{{ trigger.event.data.rooms }}"
+        repeats: "{{ trigger.event.data.repeats if 'repeats' in trigger.event.data else 1 }}"
+        mop_intensity: 'off'
+        fan_speed: turbo

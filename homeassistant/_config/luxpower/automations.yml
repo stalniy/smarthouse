@@ -68,7 +68,7 @@
             100
           {% elif power_forecast <= 15 %}
             70
-          {% elif power_forecast <= 20 or battery_level < 40 %}
+          {% elif power_forecast <= 20 or (1 <= now().month <= 3 or 11 <= now().month <= 12) and battery_level < 40 %}
             40
           {% else %}
             0
@@ -154,8 +154,18 @@
       entity_id: 
         - switch.hwc_heating
       to: "on"
+    - platform: numeric_state
+      above: 0.1
+      below: 0.1
+      entity_id:
+        - sensor.kitchen_oven_power
+        - sensor.dishwasher_power
+        - sensor.washing_machine_power
+        - sensor.dryer_power
+        - sensor.kitchen_stove_power
+        - sensor.kitchen_socket_left1_power
     - platform: time_pattern
-      seconds: "/5"
+      minutes: "/1"
   condition:
     - condition: template
       value_template: |

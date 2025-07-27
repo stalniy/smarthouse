@@ -49,6 +49,7 @@ export function buildConfig(config) {
     "status_codes",
     "generator_voltage",
     "generator_power",
+    "temp",
   ];
   for (let i = 0; i < config_entities.length; i++) {
     importConfigEntities(config, new_config, inverter_count, config_entities[i]);
@@ -123,15 +124,30 @@ export function buildConfig(config) {
     }
   }
 
+  // Check solar
+  new_config.pv_power = {is_used: false}
+  if (config.pv_power && config.pv_power.entities && config.pv_power.entities.length != 0) {
+    new_config.pv_power.is_used = true;
+    new_config.pv_power.entities = config.pv_power.entities
+  }
+
   // Check individual solar inputs
-  if (config.pv_power.show_individual) {
-    new_config.pv_power.show_individual = true;
-    new_config.pv_power.individuals = {}
-    for (let i = 0; i < inverter_count; i++) {
-      let key_name = `inv_${(i + 1)}_entities`;
-      new_config.pv_power.individuals[key_name] = config.pv_power[key_name]
+  if (config.pv_power?.is_used) {
+    if (config.pv_power.show_individual) {
+      new_config.pv_power.show_individual = true;
+      new_config.pv_power.individuals = {}
+      for (let i = 0; i < inverter_count; i++) {
+        let key_name = `inv_${(i + 1)}_entities`;
+        new_config.pv_power.individuals[key_name] = config.pv_power[key_name]
+      }
     }
   }
+
+  // Check reverse grid flow
+  if (config.grid_flow.reverse) {
+    new_config.grid_flow.reverse = config.grid_flow.reverse
+  }
+
   validateConfig(new_config);
   return new_config;
 }

@@ -1,6 +1,8 @@
-homeassistant: true
-permit_join: false
-frontend: true
+homeassistant:
+  enabled: true
+  legacy_action_sensor: true
+frontend:
+  enabled: true
 mqtt:
   base_topic: zb2mqtt
 devices:
@@ -73,8 +75,6 @@ devices:
     friendly_name: terrace_outside_curtain
   '0xa4c1386338cbc1c5':
     friendly_name: kid_small_outside_curtain
-  '0xa4c13895caeacd23':
-    friendly_name: kid_big_outside_curtain
   '0xa4c1386f295ba842':
     friendly_name: cabinet_outside_curtain
   '0xa4c1389e40e945ff':
@@ -114,14 +114,10 @@ devices:
     friendly_name: main_entrance_lock
   '0x842712fffe412c67':
     friendly_name: main_entrance_outside_light
-  '0x842712fffe415c44':
-    friendly_name: entrance_room_light
   '0x00158d0008c7b364':
     friendly_name: master_bedroom_window_open
   '0xa4c138ce135e538a':
     friendly_name: terace_door_lock
-  '0xa4c138b6e99fbf5f':
-    friendly_name: livingroom_tv
   '0x001788010916b368':
     friendly_name: entrance_room_motion
   '0xa4c138a24835333a':
@@ -136,8 +132,6 @@ devices:
     friendly_name: cabinet_map_light
   '0x70b3d52b60069ed9':
     friendly_name: kid_bathroom_towel_dryer
-  '0xa4c138a15474cf3f':
-    friendly_name: '0xa4c138a15474cf3f'
   '0x00124b002919d065':
     friendly_name: kitchen_entrance_motion
   '0x54ef441000d286f6':
@@ -167,12 +161,36 @@ devices:
     friendly_name: master_bathroom_light2
   '0x00124b002b487677':
     friendly_name: terrace_tulle_curtain
-    invert_cover: true
+    invert_cover: false
     cover_position_tilt_disable_report: false
   '0xe0798dfffecc7471':
     friendly_name: kid_big_bedroom_climate
+  '0x00158d0008c7b310':
+    friendly_name: kid_big_bedroom_window_open
+  '0x00158d00087bd149':
+    friendly_name: cabinet_window_open
+  '0x00158d008b5a3a13':
+    friendly_name: techroom_window_open
+  '0x00158d008b630a02':
+    friendly_name: livingroom_window2_open
+  '0xa4c138b6e99fbf5f':
+    friendly_name: livingroom_tv
+  '0xa4c1389250cdd702':
+    friendly_name: entrance_room_light_switch
+  '0xa4c1380193adffff':
+    friendly_name: boiler_temperature_middle
+  '0xa4c1384d3c1eed88':
+    friendly_name: water_heater_2k
+  '0xa4c13895caeacd23':
+    friendly_name: kid_big_outside_curtain
+  '0xa4c138414d6e620f':
+    friendly_name: house_roof_temperature
+  '0x0ceff6fffe1bef4f':
+    friendly_name: water_heater_leaking
 advanced:
   pan_id: 6754
-  log_level: warning
-external_converters:
-  - converters/TS0601.js
+  log_level: error
+device_options: {}
+serial:
+  adapter: zstack
+version: 4

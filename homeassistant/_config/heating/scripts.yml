@@ -1,41 +1,51 @@
 sync_heater_valves:
   alias: Sync heater valves with thermostat input booleans
+  mode: restart
   variables:
     # When valves is open, switch is off
     entity_ids: |
       {% set fake_heater_valves = [
-          states.input_boolean.thermostat_driven_heater_valve_master_bedroom,
-          states.input_boolean.thermostat_driven_heater_valve_master_bathroom_hot_floor,
-          states.input_boolean.thermostat_driven_heater_valve_cabinet,
-          states.input_boolean.thermostat_driven_heater_valve_kid_small_bedroom,
-          states.input_boolean.thermostat_driven_heater_valve_kid_big_bedroom,
-          states.input_boolean.thermostat_driven_heater_valve_hall_and_small_bathroom,
-          states.input_boolean.thermostat_driven_heater_valve_livingroom,
-          states.input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom1,
-          states.input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom2,
-          states.input_boolean.thermostat_driven_heater_valve_hot_floor_livingroom3,
-          states.input_boolean.thermostat_driven_heater_valve_kitchen_hot_floor,
-          states.input_boolean.thermostat_driven_heater_valve_hot_floor_entrance_tech_room,
-        ] %}
-        {% set turn_on_entities = namespace(value=[]) %}
-        {% set turn_off_entities = namespace(value=[]) %}
+        states.input_boolean.thermostat_driven_heater_valve_master_bedroom,
+        states.input_boolean.thermostat_driven_heater_valve_master_bathroom_hotfloor,
+        states.input_boolean.thermostat_driven_heater_valve_cabinet,
+        states.input_boolean.thermostat_driven_heater_valve_kid_small_bedroom,
+        states.input_boolean.thermostat_driven_heater_valve_kid_big_bedroom,
+        states.input_boolean.thermostat_driven_heater_valve_kid_bathroom_hotfloor,
+        states.input_boolean.thermostat_driven_heater_valve_livingroom,
+        states.input_boolean.thermostat_driven_heater_valve_livingroom_hotfloor_table,
+        states.input_boolean.thermostat_driven_heater_valve_livingroom_hotfloor_fireplace,
+        states.input_boolean.thermostat_driven_heater_valve_livingroom_hotfloor_exit,
+        states.input_boolean.thermostat_driven_heater_valve_kitchen_hotfloor,
+        states.input_boolean.thermostat_driven_heater_valve_entrance_room_hotfloor,
+      ] %}
 
-        {% for entity in fake_heater_valves %}
-          {% set switch_entity_id = entity.entity_id 
-            | replace('input_boolean.', 'switch.') 
-            | replace('thermostat_driven_', '') 
-          %}
-          {% if entity.state == 'on' or is_state('input_boolean.heating_enabled', 'off') %}
-            {% set turn_off_entities.value = turn_off_entities.value + [switch_entity_id] %}
-          {% else %}
-            {% set turn_on_entities.value = turn_on_entities.value + [switch_entity_id] %}
-          {% endif %}
-        {% endfor %}
+      {% set enabled_heaters = fake_heater_valves
+        | selectattr('state', 'eq', 'on')
+        | map(attribute='entity_id')
+        | map('regex_replace', 'input_boolean.thermostat_driven_', 'switch.')
+        | list
+      %}
 
-        {{{
-          'turn_on': turn_on_entities.value | reject('is_state', 'on') | list,
-          'turn_off': turn_off_entities.value | reject('is_state', 'off') | list
+      {% if enabled_heaters | count == 0 %}
+        {{{ 
+          'turn_on': [],
+          'turn_off': fake_heater_valves
+            | map(attribute='entity_id')
+            | map('regex_replace', 'input_boolean.thermostat_driven_', 'switch.')
+            | list
         }}}
+      {% else %}
+        {% set disabled_heaters = fake_heater_valves
+          | map(attribute='entity_id')
+          | map('regex_replace', 'input_boolean.thermostat_driven_', 'switch.')
+          | reject('in', enabled_heaters)
+          | list
+        %}
+        {{{
+          'turn_on': disabled_heaters,
+          'turn_off': enabled_heaters
+        }}}
+      {% endif %}
   sequence:
     - if: 
       - condition: template

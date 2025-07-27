@@ -14,6 +14,12 @@ https://wiki.mikrotik.com/wiki/Manual:Interface/L2TP#Summary
 
 https://gist.github.com/stalniy/5ec118d50f7b8c0a87514e9085418b64
 
+To loook for discovery topics in MQTT:
+
+```
+mosquitto_sub -u "$USER" -P "$PASSOWRD" -h localhost -t "homeassistant/sensor/+/config" 
+```
+
 ## Bluetooth USB
 
 ```sh
@@ -21,3 +27,4 @@ rfkill unblock bluetooth
 sudo hciconfig hci0 reset
 hciconfig dev
 ```
+

@@ -1,6 +1,7 @@
 import * as cef from "./config-entity-functions.js";
 import * as hf from "./html-functions.js";
 import * as constants from "./constants.js";
+import './lux-power-distribution-card-editor.js';
 
 class LuxPowerDistributionCard extends HTMLElement {
   constructor() {
@@ -25,6 +26,14 @@ class LuxPowerDistributionCard extends HTMLElement {
     this._config = cef.buildConfig(config);
   }
 
+  static getConfigElement() {
+    return document.createElement("lux-power-distribution-card-editor");
+  }
+
+  static getStubConfig() {
+    return constants.stub_config;
+  }
+
   createCard() {
     if (!this._hass || !this._config) {
       return;
@@ -32,7 +41,7 @@ class LuxPowerDistributionCard extends HTMLElement {
     const shadowRoot = this.shadowRoot;
 
     this.card = document.createElement("ha-card");
-    if (this._config.title) {
+    if (this._config.title && this._config.title.length != 0) {
       const header = document.createElement("h1");
       header.classList.add("card-header");
       header.appendChild(document.createTextNode(this._config.title));
@@ -45,6 +54,7 @@ class LuxPowerDistributionCard extends HTMLElement {
     this.content.innerHTML = `
       <style>${hf.generateStyles(this._config)}</style>
       <div id="taskbar-grid" class="status-grid">${hf.generateStatus(this._config)}</div>
+      <div id="temp-grid" class="status-grid">${hf.generateTemp(this._config)}</div>
       <div id="card-grid" class="diagram-grid">${hf.generateGrid(this._config)}</div>
       <div id="datetime-info" class="update-time">${hf.generateDateTime(this._config)}</div>
     `;
@@ -74,6 +84,7 @@ class LuxPowerDistributionCard extends HTMLElement {
         }
       }
       this.updateStatus(index);
+      this.updateTemp(index)
       this.updateSolar(index);
       this.updateBattery(index);
       this.updateGrid(index);
@@ -104,11 +115,9 @@ class LuxPowerDistributionCard extends HTMLElement {
           }
           if (index == config.inverter_count) {
             for (let j = 0; j < config.inverter_count; j++) {
-              console.log(config.lux_dongle.values[i]);
               hass.callService("luxpower", "luxpower_refresh_registers", {
                 dongle: config.lux_dongle.values[i],
               });
-              console.log(config.lux_dongle.values[i]);
             }
           } else {
             hass.callService("luxpower", "luxpower_refresh_registers", {
@@ -146,7 +155,6 @@ class LuxPowerDistributionCard extends HTMLElement {
                 }
               }
             }
-
             const event = new Event("hass-more-info", {
               bubbles: true,
               cancelable: false,
@@ -217,57 +225,79 @@ class LuxPowerDistributionCard extends HTMLElement {
   }
 
   updateStatus(index) {
-    let msg = "";
-    if (index == -1) {
-      let statuses = [];
-      let normal_cnt = 0;
-      let error_cnt = 0;
-      for (let i = 0; i < this._config.inverter_count; i++) {
-        let msg_i = cef.getStatusMessage(
-          parseInt(cef.getEntitiesState(this._config, this._hass, "status_codes", i)),
-          this._config.status_codes.no_grid_is_warning
-        );
-        statuses.push(msg_i);
-        if (msg_i == `Normal 🟢`) {
-          normal_cnt++;
-        } else {
-          error_cnt++;
-        }
-      }
-      if (error_cnt == 0) {
-        // no errors
-        msg = `Status: ${statuses[0]}`;
-      } else if (error_cnt == 1) {
-        // single error
-        let filtered = statuses.filter(function (stat) {
-          return stat !== "Normal 🟢";
-        });
-        let fault_index = statuses.indexOf(filtered[0]);
-        msg = `${this._config.inverter_alias.values[fault_index]}: ${statuses[fault_index]}`;
-      } else {
-        // Multiple or multiple of same
-        let filtered = statuses.filter(function (stat) {
-          return stat !== "Normal 🟢";
-        });
-        let filtered_again = filtered.filter(function (stat) {
-          return stat !== filtered[0];
-        });
-        if (filtered_again.length == 0) {
-          msg = `Status: ${statuses[0]}`;
-        } else {
-          msg = `Multiple errors 🔴`;
-        }
-      }
-    } else {
-      msg = cef.getStatusMessage(
-        parseInt(cef.getEntitiesState(this._config, this._hass, "status_codes", index)),
-        this._config.status_codes.no_grid_is_warning
-      );
-      msg = `Status: ${msg}`;
-    }
     const status_element = this.shadowRoot.querySelector("#status-cell");
     if (this._config.status_codes.is_used && status_element) {
+      let msg = "";
+      if (index == -1) {
+        let statuses = [];
+        let normal_cnt = 0;
+        let error_cnt = 0;
+        for (let i = 0; i < this._config.inverter_count; i++) {
+          let msg_i = cef.getStatusMessage(
+            parseInt(cef.getEntitiesState(this._config, this._hass, "status_codes", i)),
+            this._config.status_codes.no_grid_is_warning
+          );
+          statuses.push(msg_i);
+          if (msg_i == `Normal 🟢`) {
+            normal_cnt++;
+          } else {
+            error_cnt++;
+          }
+        }
+        if (error_cnt == 0) {
+          // no errors
+          msg = `Status: ${statuses[0]}`;
+        } else if (error_cnt == 1) {
+          // single error
+          let filtered = statuses.filter(function (stat) {
+            return stat !== "Normal 🟢";
+          });
+          let fault_index = statuses.indexOf(filtered[0]);
+          msg = `${this._config.inverter_alias.values[fault_index]}: ${statuses[fault_index]}`;
+        } else {
+          // Multiple or multiple of same
+          let filtered = statuses.filter(function (stat) {
+            return stat !== "Normal 🟢";
+          });
+          let filtered_again = filtered.filter(function (stat) {
+            return stat !== filtered[0];
+          });
+          if (filtered_again.length == 0) {
+            msg = `Status: ${statuses[0]}`;
+          } else {
+            msg = `Multiple errors 🔴`;
+          }
+        }
+      } else {
+        msg = cef.getStatusMessage(
+          parseInt(cef.getEntitiesState(this._config, this._hass, "status_codes", index)),
+          this._config.status_codes.no_grid_is_warning
+        );
+        msg = `Status: ${msg}`;
+      }
       status_element.innerHTML = msg;
+    }
+  }
+
+  updateTemp(index) {
+    const temp_element = this.shadowRoot.querySelector("#temp-cell");
+    if (this._config.temp.is_used && temp_element) {
+      let msg = "";
+      if (index == -1) {
+        let max_temp = parseInt(cef.getEntitiesState(this._config, this._hass, "temp", 0));
+        let max_index = 0;
+        for (let i = 1; i < this._config.inverter_count; i++) {
+          let temp_i = parseInt(cef.getEntitiesState(this._config, this._hass, "temp", i));
+            if (temp_i > max_temp) {
+              max_temp = temp_i;
+              max_index = i
+            }
+        }
+        msg = `${this._config.inverter_alias.values[max_index]} temp: ${cef.getEntitiesState(this._config, this._hass, "temp", max_index)} ${cef.getEntitiesUnit(this._config, this._hass, "temp", max_index)}`;
+      } else {
+        msg = `Temp: ${cef.getEntitiesState(this._config, this._hass, "temp", 0)} ${cef.getEntitiesUnit(this._config, this._hass, "temp", 0)}`;
+      }
+      temp_element.innerHTML = msg;
     }
   }
 
@@ -354,6 +384,9 @@ class LuxPowerDistributionCard extends HTMLElement {
     const grid_arrow_1_element = this.shadowRoot.querySelector("#grid-arrows-1");
     const grid_arrow_2_element = this.shadowRoot.querySelector("#grid-arrows-2");
     let grid_flow = cef.getEntitiesNumState(this._config, this._hass, "grid_flow", index);
+    if (this._config.grid_flow?.reverse) {
+      grid_flow = grid_flow * -1
+    }
     let gen_power = this._config.generator_power.is_used ? parseInt(cef.getEntitiesState(this._config, this._hass, "generator_power", index)) : 0;
     if (grid_arrow_1_element && grid_arrow_2_element) {
       const arrow_direction = (grid_flow < 0 || gen_power > 0) ? "arrows-left" : (grid_flow > 0 ? "arrows-right" : "arrows-none");
@@ -587,3 +620,9 @@ class LuxPowerDistributionCard extends HTMLElement {
 }
 
 customElements.define("lux-power-distribution-card", LuxPowerDistributionCard);
+window.customCards = window.customCards || [];
+window.customCards.push({
+  type: "lux-power-distribution-card",
+  name: "Lux power-distribution card ",
+  description: "A power-distribution card that imitates the LuxPower app.",
+});

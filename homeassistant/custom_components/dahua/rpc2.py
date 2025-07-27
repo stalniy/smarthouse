@@ -6,17 +6,14 @@ Auth taken and modified and added to, from https://gist.github.com/gxfxyz/48072a
 import hashlib
 import json
 import logging
-import sys
 
 import aiohttp
+import asyncio
 
 from custom_components.dahua.models import CoaxialControlIOStatus
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
-
-if sys.version_info > (3, 0):
-    unicode = str
-
+unicode = str
 
 class DahuaRpc2Client:
     def __init__(
@@ -24,18 +21,20 @@ class DahuaRpc2Client:
             username: str,
             password: str,
             address: str,
-            port: int,
-            rtsp_port: int,
-            session: aiohttp.ClientSession
+            port: int = 80,
+            rtsp_port: int = 554,
+            session: aiohttp.ClientSession | None = None
     ) -> None:
         self._username = username
         self._password = password
-        self._session = session
+        self._session = session or aiohttp.ClientSession()
         self._rtsp_port = rtsp_port
         self._session_id = None
         self._id = 0
         protocol = "https" if int(port) == 443 else "http"
         self._base = "{0}://{1}:{2}".format(protocol, address, port)
+        self._keep_alive_task = None
+        self._keep_alive_recovered = 0
 
     async def request(self, method, params=None, object_id=None, extra=None, url=None, verify_result=True):
         """Make an RPC request."""
@@ -61,6 +60,10 @@ class DahuaRpc2Client:
         return resp_json
 
     async def login(self):
+        self._keep_alive_task = asyncio.create_task(self._start_keep_alive_polling())
+        return await self._login()
+
+    async def _login(self):
         """Dahua RPC login.
         Reversed from rpcCore.js (login, getAuth & getAuthByType functions).
         Also referenced:
@@ -97,13 +100,21 @@ class DahuaRpc2Client:
                   'clientType': "Dahua3.0-Web3.0",
                   'authorityType': "Default",
                   'passwordType': "Default"}
-        return await self.request(method=method, params=params, url=url)
+        response = await self.request(method=method, params=params, url=url)
+        self._session_id = response['session']
+        return response
 
     async def logout(self) -> bool:
         """Logs out of the current session. Returns true if the logout was successful"""
+
+        if self._keep_alive_task is not None:
+            self._keep_alive_task.cancel()
+            self._keep_alive_recovered = 0
+
         try:
             response = await self.request(method="global.logout")
             if response['result'] is True:
+                self._session_id = None
                 return True
             else:
                 _LOGGER.debug("Failed to log out of Dahua device %s", self._base)
@@ -135,3 +146,91 @@ class DahuaRpc2Client:
         """ async_get_coaxial_control_io_status returns the the current state of the speaker and white light. """
         response = await self.request(method="CoaxialControlIO.getStatus", params={"channel": channel})
         return CoaxialControlIOStatus(response)
+    
+    async def _start_keep_alive_polling(self):
+        while True:
+            await asyncio.sleep(60)
+
+            _LOGGER.debug('Send keep alive packet')
+            response = await self.keep_alive()
+            _LOGGER.debug('keep alive response %s', response)
+
+            if response.get('error', None) and response["error"].get('code', None) == 287637504:
+                self._keep_alive_recovered += 1
+
+                if self._keep_alive_recovered < 5:
+                    await self._login()
+                break 
+
+            self._keep_alive_recovered = 0
+
+    async def keep_alive(self):
+        params = {
+            'timeout': 300,
+            'active': False
+        }
+
+        return await self.request(method="global.keepAlive", params=params)
+        
+    async def attach_event(self, event = []):
+        """Attach a event to current session"""
+        method = "eventManager.attach"
+        if(event is None):
+            return
+        params = {
+            'codes' : [*event]
+        }
+
+        r = await self.request(method=method, params=params, verify_result=True)
+
+        return r['params']
+    
+    async def listen_events(self, on_receive):
+        """ Listen for envents. Attach an event before using this function """
+        url = "{host}/SubscribeNotify.cgi?sessionId={session}".format(host=self._base,session=self._session_id)
+        
+        timeout = aiohttp.ClientTimeout(total=None, sock_read=None)
+        async with self._session as session: 
+            async with session.get(url, timeout=timeout) as events_stream:
+                async for chunk, _ in events_stream.content.iter_chunks():
+                    raw_event = chunk.decode("utf-8")
+                    event = self._parse_event(raw_event)
+
+                    if event is None:
+                       _LOGGER.warning("Unable to parse event %s", raw_event)
+                       continue
+
+                    if event.get('method', None) != 'client.notifyEventStream':
+                        _LOGGER.warning("Unexpected payload %s", event)
+                        continue
+
+                    if event.get('session', None) != self._session_id:
+                        _LOGGER.warning("Received event for another session: %s", event, self._session_id)
+                        continue
+
+                    for item in event["params"]["eventList"]:
+                        on_receive(item)
+    
+    def _parse_event(self, chunk):
+        json_index = chunk.find('var json=')
+        if json_index == -1:
+            return None
+        
+        start_index = chunk.find('{', json_index)
+        end_index = chunk.rfind('}')
+
+        if start_index == -1 or end_index == -1:
+            return None
+        
+        matched_json = chunk[start_index:end_index + 1]
+
+        if not matched_json:
+            return None
+        
+        try:
+            return json.loads(matched_json)
+        except:
+            return None
+        
+
+        

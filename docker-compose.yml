@@ -2,7 +2,7 @@ version: '3'
 services:
   homeassistant:
     container_name: homeassistant
-    image: "ghcr.io/home-assistant/home-assistant:2024.5"
+    image: "ghcr.io/home-assistant/home-assistant:2025.5.3"
     volumes:
       - /home/homeman/smarthome/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
@@ -34,7 +34,7 @@ services:
 
   zb2mqtt-house: 
     container_name: zb2mqtt-house
-    image: koenkk/zigbee2mqtt:1.42.0
+    image: koenkk/zigbee2mqtt:2.4.0
     restart: unless-stopped
     depends_on:
       - mq
@@ -72,7 +72,7 @@ services:
 
   zb2mqtt-garage: 
     container_name: zb2mqtt-garage
-    image: koenkk/zigbee2mqtt:1.42.0
+    image: koenkk/zigbee2mqtt:2.4.0
     restart: unless-stopped
     depends_on:
       - mq
@@ -115,7 +115,7 @@ services:
   signal-cli-rest-api:
     container_name: signal-rest-api
     restart: unless-stopped
-    image: bbernhard/signal-cli-rest-api:0.89
+    image: bbernhard/signal-cli-rest-api:0.93
     environment:
       - MODE=json-rpc #supported modes: json-rpc, native, normal. json-prc is recommended for speed
     ports:
@@ -160,13 +160,50 @@ services:
   vlc_via_telnet:
     container_name: vlc_telnet
     image: ghcr.io/denidoman/vlc-telnet-docker:main
+    restart: unless-stopped
     ports:
       - 4212:4212
     environment:
       - TELNET_PASSWORD=${VLC_TELNET_PASSWORD}
-      - SOUND_CARD_NUMBER=1
+      - SOUND_CARD_NUMBER=0
     devices:
       - /dev/snd:/dev/snd
+
+  # frigate:
+  #   container_name: frigate
+  #   # privileged: true # this may not be necessary for all setups
+  #   restart: unless-stopped
+  #   stop_grace_period: 30s # allow enough time to shut down the various services
+  #   image: ghcr.io/blakeblackshear/frigate:0.15.0
+  #   shm_size: "512mb" # update for your cameras based on calculation above
+  #   devices:
+  #     - /dev/dri:/dev/dri
+  #     - /dev/bus/usb:/dev/bus/usb # Passes the USB Coral, needs to be modified for other versions
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
+  #     - /home/homeman/smarthome/frigate/config:/config
+  #     - /home/homeman/smarthome/frigate/storage:/media/frigate
+  #     - type: tmpfs # Optional: 1GB of memory, reduces SSD/SD Card wear
+  #       target: /tmp/cache
+  #       tmpfs:
+  #         size: 1000000000
+  #   cap_add:
+  #     - SYS_ADMIN
+  #   security_opt:
+  #     - apparmor:unconfined
+  #   ports:
+  #     - "8971:8971"
+  #     - "5000:5000" # Internal unauthenticated access. Expose carefully.
+  #     - "8554:8554" # RTSP feeds
+  #     - "8555:8555/tcp" # WebRTC over tcp
+  #     - "8555:8555/udp" # WebRTC over udp
+  #     - "1984:1984"
+  #   environment:
+  #     FRIGATE_RTSP_USER: $FRIGATE_RTSP_USER
+  #     FRIGATE_RTSP_PASSWORD: $FRIGATE_RTSP_PASSWORD
+  #     FRIGATE_MQTT_USER: $FRIGATE_MQTT_USER
+  #     FRIGATE_MQTT_PASSWORD: $FRIGATE_MQTT_PASSWORD
+  #     FRIGATE_MQTT_HOST: $FRIGATE_MQTT_HOST
 
 
   # rhasspy:

@@ -173,7 +173,7 @@ template:
             {% set min_level = 70 %}
           {% else %}
             {% if 4 <= now().month < 9 %}
-              {% set min_level = 20 if 8 <= now().hour <= 14 else 40 %}
+              {% set min_level = 20 if 5 <= now().hour <= 14 else 40 %}
             {% else %}
               {% set min_level = 40 if 9 <= now().hour <= 13 else 60 %}
             {% endif %}
@@ -199,11 +199,15 @@ template:
     binary_sensor:
     - name: lux_power_grid_overused
       state: |
-        {% if 4 <= now().month < 9 %}
-          {{ float(states('sensor.lux_power_from_grid_live'), 0) > 1000 }} 
+        {% if now().hour >= 23 or now().hour < 7 %}
+          false
         {% else %}
-          {{ float(states('sensor.lux_power_from_grid_live'), 0) > 3000 }} 
-        {% endif %}         
+          {% if 4 <= now().month < 9 %}
+            {{ float(states('sensor.lux_power_from_grid_live'), 0) > 1000 }} 
+          {% else %}
+            {{ float(states('sensor.lux_power_from_grid_live'), 0) > 3000 }} 
+          {% endif %}         
+        {% endif %}
 
   - button:
     - unique_id: reconnect_to_luxpower

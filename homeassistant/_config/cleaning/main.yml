@@ -142,10 +142,18 @@ script:
       current_mop_mode: "{{ mop_mode if mop_mode is defined else 'custom' }}"
       current_mop_intensity: "{{ mop_intensity if mop_intensity is defined else 'custom' }}"
     sequence:
+      - service: system_log.write
+        data:
+          level: error
+          message: wait before starting cleaning {{ rooms | to_json }}
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
           {{ states('vacuum.bruce') in start_on_vacuum_state }}
         timeout: "05:00:00"
+      - service: system_log.write
+        data:
+          level: error
+          message: start cleaning {{ rooms | to_json }}
       - if: 
           - condition: template
             value_template: "{{ wait.completed }}"
@@ -192,20 +200,6 @@ script:
                   message: |
                     Не виявлено кімнат для прибирання, ігнорую. Кімнати для прибирання:
                     {{ rooms | join("\n") }}
-          - if: 
-              - condition: template
-                value_template: |
-                  {{ 
-                    is_state('input_boolean.skip_child_zone', 'on') and 
-                    'livingroom_entertainment' in rooms 
-                  }}
-            then:
-              - service: script.vacuum_clean_zone
-                data:
-                  zones: [livingroom_entertainment]
-                  fan_speed: "{{ current_fan_speed }}"
-                  mop_intensity: "{{ current_mop_intensity }}"
-                  mop_mode: "{{ current_mop_mode }}"
         else:
           - event: important_home_event
             event_data:
@@ -318,5 +312,101 @@ script:
           message: |
             Брюс почав прибирання зон:
             {{ zones | join("\n") }}
-      
+
+  vacuum_clean_tech_rooms:
+    alias: Vacuum clean bathrroms and tech room
+    mode: restart
+    icon: mdi:robot-vacuum
+    sequence:
+      - service: script.vacuum_clean
+        alias: Пилососити
+        data:
+          rooms: 
+            - master_bathroom
+            - kid_bathroom
+            - tech_room
+          mop_intensity: 'off'
+          fan_speed: turbo
+          repeats: 2
+      - if: 
+          - condition: template
+            value_template: >-
+              {{ 
+                is_state('binary_sensor.roborock_s7_mop_attached', 'on') and
+                is_state('binary_sensor.roborock_s7_water_box_attached', 'on') 
+              }}
+        then:
+          - service: script.vacuum_clean
+            alias: мити
+            data:
+              rooms: 
+                - master_bathroom
+                - kid_bathroom
+                - tech_room
+              fan_speed: 'off'
+              mop_intensity: intense
+              mop_mode: deep_plus
+              repeats: 2
+  
+  vacuum_mop_rooms_to_clean_today:
+    alias: Vacuum mop rooms to clean today
+    mode: restart
+    icon: mdi:robot-vacuum
+    sequence:
+      - service: script.vacuum_clean
+        alias: Мити підлогу
+        data:
+          rooms: "{{ states('sensor.rooms_to_clean_today') | from_json }}"
+          fan_speed: 'off'
+          mop_intensity: custom
+      - service: script.vacuum_clean
+        alias: Мити вхідну кімнату
+        data: 
+          rooms: [entrance_room]
+          fan_speed: 'off'
+          mop_intensity: intense
+          mop_mode: deep_plus
+
+  vacuum_clean_entrances:
+    alias: Vacuum clean entrances
+    mode: restart
+    icon: mdi:robot-vacuum
+    sequence:
+      - service: script.vacuum_clean
+        alias: Пилососити входи
+        data:
+          rooms: 
+            - entrance_room
+          fan_speed: turbo
+          repeats: 2
+      - service: script.vacuum_clean_zone
+        data:
+          zones: 
+            - terrace_exit
+          fan_speed: turbo
+          mop_intensity: 'off'
+      - if: 
+          - condition: template
+            value_template: >-
+              {{ 
+                is_state('binary_sensor.roborock_s7_mop_attached', 'on') and
+                is_state('binary_sensor.roborock_s7_water_box_attached', 'on') 
+              }}
+        then:
+          - service: script.vacuum_clean
+            alias: мити входи
+            data:
+              rooms: 
+                - entrance_room
+              fan_speed: 'off'
+              mop_intensity: intense
+              mop_mode: deep_plus
+          - service: script.vacuum_clean_zone
+            data:
+              zones: 
+                - terrace_exit
+              fan_speed: 'off'
+              mop_intensity: intense
+              mop_mode: deep_plus
+
 automation: !include ./automations.yml

@@ -13,9 +13,9 @@ automation:
         entity_id: binary_sensor.entrance_room_motion_occupancy
         to: 'on'
         variables:
-          new_state: "{{ is_state('switch.entrance_room_light', 'on') or float(states('sensor.entrance_room_motion_illuminance_lux'), 0) <= 5 }}"
+          new_state: "{{ is_state('switch.entrance_room_light', 'on') or float(states('sensor.entrance_room_motion_illuminance'), 0) <= 5 }}"
       - platform: numeric_state
-        entity_id: sensor.entrance_room_motion_illuminance_lux
+        entity_id: sensor.entrance_room_motion_illuminance
         below: 5
         variables:
           new_state: "{{ is_state('binary_sensor.entrance_room_motion_occupancy', 'on') }}"
@@ -44,7 +44,7 @@ automation:
             {{ 
               is_state('light.kitchen_led_light', 'on') or
               is_state('switch.kitchen_light_main', 'on') or
-              float(states('sensor.kitchen_light_sensor_illuminance_lux'), 0) <= 75
+              float(states('sensor.kitchen_light_sensor_illuminance'), 0) <= 75
             }}
       - platform: state
         entity_id: binary_sensor.kitchen_occupancy
@@ -53,7 +53,7 @@ automation:
         variables:
           new_state: false
       - platform: numeric_state
-        entity_id: sensor.kitchen_light_sensor_illuminance_lux
+        entity_id: sensor.kitchen_light_sensor_illuminance
         below: 75
         above: 75
         variables:
@@ -73,6 +73,13 @@ automation:
           - service_template: "switch.turn_{{ device_state }}"
             target:
               entity_id: switch.kitchen_light_main
+          - if: 
+            - condition: template
+              value_template: "{{ is_state('light.kitchen_led_light', 'on') }}"
+            then: 
+            - service: "light.turn_off"
+              target:
+                entity_id: light.kitchen_led_light
         - conditions:
           - condition: template
             value_template: "{{ device_state == 'on' }}"
@@ -145,11 +152,7 @@ automation:
       - service: light.turn_on
         data:
           brightness: |
-            {{ int(state_attr('light.kid_bathroom', 'min_brightness')) + 
-              (brightness_level * (
-                int(state_attr('light.kid_bathroom', 'max_brightness')) - int(state_attr('light.kid_bathroom', 'min_brightness'))
-              ) / 100) | round
-            }}
+            {{ 64 + (brightness_level * (230 - 64)) / 100 | round }}
         target:
           entity_id: light.kid_bathroom
 

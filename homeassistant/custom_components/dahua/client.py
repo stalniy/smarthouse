@@ -8,6 +8,7 @@ import async_timeout
 from .digest import DigestAuth
 from hashlib import md5
 from urllib.parse import quote
+from .dahua_utils import parse_event
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
@@ -29,19 +30,20 @@ class DahuaClient:
             username: str,
             password: str,
             address: str,
-            port: int,
-            rtsp_port: int,
-            session: aiohttp.ClientSession
+            port: int = 80,
+            rtsp_port: int = 554,
+            session: aiohttp.ClientSession = None
     ) -> None:
         self._username = username
         self._password = password
         self._address = address
-        self._session = session
+        self._session = session or aiohttp.ClientSession()
         self._port = port
         self._rtsp_port = rtsp_port
 
         protocol = "https" if int(port) == 443 else "http"
         self._base = "{0}://{1}:{2}".format(protocol, address, port)
+        self
 
     def get_rtsp_stream_url(self, channel: int, subtype: int) -> str:
         """
@@ -605,6 +607,18 @@ class DahuaClient:
         url = "/cgi-bin/configManager.cgi?action=setConfig&DisableLinkage[{0}].Enable={1}".format(channel, value)
         return await self.get(url)
 
+    async def async_set_event_notifications(self, channel: int, enabled: bool) -> dict:
+        """
+        async_set_event_notifications will set the camera's disarming event notifications (Event -> Disarming -> Event Notifications in the UI)
+        """
+
+        value = "true"
+        if enabled:
+            value = "false"
+
+        url = "/cgi-bin/configManager.cgi?action=setConfig&DisableEventNotify[{0}].Enable={1}".format(channel, value)
+        return await self.get(url)
+
     async def async_set_record_mode(self, channel: int, mode: str) -> dict:
         """
         async_set_record_mode sets the record mode.
@@ -630,10 +644,18 @@ class DahuaClient:
         """
 
         url = "/cgi-bin/configManager.cgi?action=getConfig&name=DisableLinkage"
-        try:
-            return await self.get(url)
-        except aiohttp.ClientResponseError as e:
-            return {"table.DisableLinkage.Enable": "false"}
+        return await self.get(url)
+
+    async def async_get_event_notifications(self) -> dict:
+        """
+        async_get_event_notifications will return false if the event notifications in disarmed state are enabled
+
+        returns
+        table.DisableEventNotify.Enable=false
+        """
+
+        url = "/cgi-bin/configManager.cgi?action=getConfig&name=DisableEventNotify"
+        return await self.get(url)
 
     async def async_access_control_open_door(self, door_id: int = 1) -> dict:
         """
@@ -714,21 +736,25 @@ class DahuaClient:
         url = "{0}/cgi-bin/eventManager.cgi?action=attach&codes=[{1}]&heartbeat=5".format(self._base, codes)
         if self._username is not None and self._password is not None:
             response = None
+            timeout = aiohttp.ClientTimeout(total=None, sock_read=None)
 
             try:
                 auth = DigestAuth(self._username, self._password, self._session)
-                response = await auth.request("GET", url)
+                response = await auth.request("GET", url, timeout=timeout)
                 response.raise_for_status()
 
                 # https://docs.aiohttp.org/en/stable/streams.html
-                async for data, _ in response.content.iter_chunks():
-                    on_receive(data, channel)
-            except Exception as exception:
-                _LOGGER.exception(f"Error in event streaming on channel {channel} ({self._address})", exc_info=exception)
+                async for chunk, _ in response.content.iter_chunks():
+                    data = chunk.decode("utf-8", errors="ignore")
+                    parsed_events = parse_event(data)
+
+                    for event in parsed_events:
+                        _LOGGER.debug("notify about event on channel %s: %s", channel, parsed_events)
+                        on_receive(event, channel)
             finally:
                 if response is not None:
                     response.close()
-
+    
     @staticmethod
     async def parse_dahua_api_response(data: str) -> dict:
         """

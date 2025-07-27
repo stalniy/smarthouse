@@ -1,14 +1,12 @@
-homeassistant: true
-permit_join: false
-frontend: true
+homeassistant:
+  enabled: true
+frontend:
+  enabled: true
 mqtt:
   base_topic: zbgarage
 advanced:
   pan_id: 6650
-  log_level: warn
-  homeassistant_legacy_entity_attributes: false
-  legacy_api: false
-  legacy_availability_payload: false
+  log_level: warning
 devices:
   '0xdc8e95fffe11b7d6':
     friendly_name: garage_light_outside
@@ -46,5 +44,9 @@ devices:
     friendly_name: basement_fan
   '0xa4c138e381bfdac1':
     friendly_name: garage_gates_right
-device_options:
-  legacy: false
+  '0xa4c13887efe3d4ca':
+    friendly_name: garage_gate_left_toggle
+device_options: {}
+serial:
+  adapter: zstack
+version: 4

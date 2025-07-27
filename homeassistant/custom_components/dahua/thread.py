@@ -30,11 +30,11 @@ class DahuaEventThread(threading.Thread):
     def run(self):
         """Fetch events"""
         self.started = True
-        _LOGGER.info("Starting DahuaEventThread on channel {self.channel}")
+        _LOGGER.info("Starting DahuaEventThread")
 
         while True:
             if not self.started:
-                _LOGGER.debug(f"Exiting DahuaEventThread on channel {self.channel}")
+                _LOGGER.debug("Exiting DahuaEventThread")
                 return
             # submit the coroutine to the event loop thread
             coro = self.client.stream_events(self.on_receive, self.events, self.channel)
@@ -45,13 +45,13 @@ class DahuaEventThread(threading.Thread):
                 # wait for the coroutine to finish
                 future.result()
             except asyncio.TimeoutError as ex:
-                _LOGGER.warning(f"TimeoutError connecting to camera on channel {self.channel}")
+                _LOGGER.warning("TimeoutError connecting to camera")
                 future.cancel()
             except Exception as ex:  # pylint: disable=broad-except
-                _LOGGER.exception(f"Error in dahua event thread on channel {self.channel}", exc_info=ex)
+                _LOGGER.debug("%s", ex)
 
             if not self.started:
-                _LOGGER.debug(f"Exiting DahuaEventThread on channel {self.channel}")
+                _LOGGER.debug("Exiting DahuaEventThread")
                 return
 
             end_time = int(time.time())
@@ -59,7 +59,7 @@ class DahuaEventThread(threading.Thread):
                 # We are failing fast when trying to connect to the camera. Let's retry slowly
                 time.sleep(60)
 
-            _LOGGER.debug(f"reconnecting to camera's event stream on channel {self.channel}...")
+            _LOGGER.debug("reconnecting to camera's event stream...")
 
     def stop(self):
         """ Signals to the thread loop that we should stop """

@@ -7,16 +7,13 @@ See https://developers.home-assistant.io/docs/core/entity/light
 from homeassistant.core import HomeAssistant
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
-    SUPPORT_BRIGHTNESS,
-    LightEntity,
+    LightEntity, LightEntityFeature, ColorMode,
 )
 
 from . import DahuaDataUpdateCoordinator, dahua_utils
 from .const import DOMAIN, SECURITY_LIGHT_ICON, INFRARED_ICON
 from .entity import DahuaBaseEntity
 from .client import SECURITY_LIGHT_TYPE
-
-DAHUA_SUPPORTED_OPTIONS = SUPPORT_BRIGHTNESS
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
@@ -75,9 +72,19 @@ class DahuaInfraredLight(DahuaBaseEntity, LightEntity):
         return self._coordinator.get_infrared_brightness()
 
     @property
+    def color_mode(self) -> ColorMode | str | None:
+        """Return the color mode of the light."""
+        return ColorMode.BRIGHTNESS
+
+    @property
+    def supported_color_modes(self) -> set[str]:
+        """Flag supported color modes."""
+        return {self.color_mode}
+
+    @property
     def supported_features(self):
         """Flag supported features."""
-        return DAHUA_SUPPORTED_OPTIONS
+        return LightEntityFeature.EFFECT
 
     @property
     def should_poll(self):
@@ -139,9 +146,14 @@ class DahuaIlluminator(DahuaBaseEntity, LightEntity):
         return self._coordinator.get_illuminator_brightness()
 
     @property
-    def supported_features(self):
-        """Flag supported features."""
-        return 0
+    def color_mode(self) -> ColorMode | str | None:
+        """Return the color mode of the light."""
+        return ColorMode.BRIGHTNESS
+    
+    @property
+    def supported_color_modes(self) -> set[str]:
+        """Flag supported color modes."""
+        return {self.color_mode}
 
     @property
     def should_poll(self):
@@ -204,6 +216,16 @@ class AmcrestRingLight(DahuaBaseEntity, LightEntity):
         await self._coordinator.client.async_set_light_global_enabled(False)
         await self._coordinator.async_refresh()
 
+    @property
+    def color_mode(self) -> ColorMode | str | None:
+        """Return the color mode of the light."""
+        return ColorMode.ONOFF
+
+    @property
+    def supported_color_modes(self) -> set[str]:
+        """Flag supported color modes."""
+        return {self.color_mode}
+
 
 class FloodLight(DahuaBaseEntity, LightEntity):
     """
@@ -238,7 +260,17 @@ class FloodLight(DahuaBaseEntity, LightEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return DAHUA_SUPPORTED_OPTIONS
+        return LightEntityFeature.EFFECT
+    
+    @property
+    def color_mode(self) -> ColorMode | str | None:
+        """Return the color mode of the light."""
+        return ColorMode.ONOFF
+
+    @property
+    def supported_color_modes(self) -> set[str]:
+        """Flag supported color modes."""
+        return {self.color_mode}
 
     @property
     def should_poll(self):
@@ -247,13 +279,12 @@ class FloodLight(DahuaBaseEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the light on"""
-        if self._coordinator._supports_coaxial_control:
+        if self._coordinator._supports_floodlightmode:
             channel = self._coordinator.get_channel()
             self._coordinator._floodlight_mode = await self._coordinator.client.async_get_floodlightmode()
             await self._coordinator.client.async_set_floodlightmode(2)
             await self._coordinator.client.async_set_coaxial_control_state(channel, SECURITY_LIGHT_TYPE, True)
             await self._coordinator.async_refresh()
-
         else:
             channel = self._coordinator.get_channel()
             profile_mode = self._coordinator.get_profile_mode()
@@ -262,7 +293,7 @@ class FloodLight(DahuaBaseEntity, LightEntity):
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off"""
-        if self._coordinator._supports_coaxial_control:
+        if self._coordinator._supports_floodlightmode:
             channel = self._coordinator.get_channel()
             await self._coordinator.client.async_set_coaxial_control_state(channel, SECURITY_LIGHT_TYPE, False)
             await self._coordinator.client.async_set_floodlightmode(self._coordinator._floodlight_mode)
@@ -324,3 +355,13 @@ class DahuaSecurityLight(DahuaBaseEntity, LightEntity):
     def icon(self):
         """Return the icon of this switch."""
         return SECURITY_LIGHT_ICON
+
+    @property
+    def color_mode(self) -> ColorMode | str | None:
+        """Return the color mode of the light."""
+        return ColorMode.ONOFF
+
+    @property
+    def supported_color_modes(self) -> set[str]:
+        """Flag supported color modes."""
+        return {self.color_mode}

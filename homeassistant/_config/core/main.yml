@@ -68,8 +68,8 @@ template:
   - binary_sensor:  
     - name: is_dark_outside
       state: |
-        {% if has_value('sensor.garage_light_sensor_illuminance_lux') %}
-          {{ float(states('sensor.garage_light_sensor_illuminance_lux')) < 25 }}
+        {% if has_value('sensor.garage_light_sensor_illuminance') %}
+          {{ float(states('sensor.garage_light_sensor_illuminance')) < 25 }}
         {% elif has_value('sun.sun') %} 
           {{ 
             is_state('sun.sun', 'below_horizon') or
@@ -173,14 +173,15 @@ template:
     
 
 command_line:
-  - switch:
-      name: water_heater_2k
-      icon: mdi:water-boiler
-      command_on: !secret water_heater_command_on
-      command_off: !secret water_heater_command_off
-      command_state: !secret water_heater_command_state
-      value_template: >-
-        {{ value == '"on"' }}
+  # sonoff D3
+  # - switch:
+  #     name: water_heater_2k
+  #     icon: mdi:water-boiler
+  #     command_on: !secret water_heater_command_on
+  #     command_off: !secret water_heater_command_off
+  #     command_state: !secret water_heater_command_state
+  #     value_template: >-
+  #       {{ value == '"on"' }}
       # availability: "{{ value_json.error == 0 }}"
   - sensor:
       name: host_battery

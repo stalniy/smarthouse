@@ -137,6 +137,7 @@ template:
             states.sensor.power_consumption_voltage_y.last_changed >= now() - timedelta(seconds=10) and
             float(states('sensor.lux_grid_voltage_live'), 0) > 0
           }}
+        delay_off: "00:00:10"
 
   - trigger:
     - platform: state

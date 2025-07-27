@@ -59,6 +59,9 @@
     - platform: state
       entity_id: binary_sensor.ebusd_bai_flame
       for: 00:00:15
+  condition:
+    - condition: template
+      value_template: "{{ is_state('group.residents', 'not_home') }}"
   action:
   - event: important_home_event
     event_data:
@@ -107,28 +110,40 @@
   trigger:
     - platform: state
       entity_id:
-        - climate.master_bedroom
-        - climate.master_bathroom_hotfloor
-        - climate.cabinet
-        - climate.kid_small_bedroom
-        - climate.kid_big_bedroom
-        - climate.kid_bathroom_hotfloor
-        - climate.livingroom
-        - climate.livingroom_hotfloor_table
-        - climate.livingroom_hotfloor_fireplace
-        - climate.livingroom_hotfloor_exit
-        - climate.kitchen_hotfloor
-        - climate.entrance_room_hotfloor
-      attribute: hvac_action
+        - input_boolean.thermostat_driven_heater_valve_master_bedroom
+        - input_boolean.thermostat_driven_heater_valve_master_bathroom_hotfloor
+        - input_boolean.thermostat_driven_heater_valve_cabinet
+        - input_boolean.thermostat_driven_heater_valve_kid_small_bedroom
+        - input_boolean.thermostat_driven_heater_valve_kid_big_bedroom
+        - input_boolean.thermostat_driven_heater_valve_kid_bathroom_hotfloor
+        - input_boolean.thermostat_driven_heater_valve_livingroom
+        - input_boolean.thermostat_driven_heater_valve_livingroom_hotfloor_table
+        - input_boolean.thermostat_driven_heater_valve_livingroom_hotfloor_fireplace
+        - input_boolean.thermostat_driven_heater_valve_livingroom_hotfloor_exit
+        - input_boolean.thermostat_driven_heater_valve_kitchen_hotfloor
+        - input_boolean.thermostat_driven_heater_valve_entrance_room_hotfloor
+        # - climate.master_bedroom
+        # - climate.master_bathroom_hotfloor
+        # - climate.cabinet
+        # - climate.kid_small_bedroom
+        # - climate.kid_big_bedroom
+        # - climate.kid_bathroom_hotfloor
+        # - climate.livingroom
+        # - climate.livingroom_hotfloor_table
+        # - climate.livingroom_hotfloor_fireplace
+        # - climate.livingroom_hotfloor_exit
+        # - climate.kitchen_hotfloor
+        # - climate.entrance_room_hotfloor
+      from: ['on', 'off']
+      to: ['on', 'off']
     - platform: state
       entity_id: 
         - input_boolean.heating_enabled
-        - input_select.heating_preset
+        - input_select.thermostats_heating_mode
         - binary_sensor.ebusd_signal
   action:
-    - delay: 00:00:05 # debounce, wait for more sensors to change to make changes in bulk
+    - delay: 00:00:05
     - service: script.sync_heater_valves
-      data: {}
 
 - id: toggle_heating_thermostats_based_on_heating_preset
   alias: Керування термостатами по режиму опалюванню
@@ -214,13 +229,11 @@
   
 - id: toggle_thermostats_mode
   alias: Toggle thermostats mode
+  mode: restart
   trigger:
     - platform: state
-      entity_id: sensor.heating_preset_mode
+      entity_id: input_select.thermostats_heating_mode
       for: "00:00:03"
-  condition:
-    - condition: template
-      value_template: "{{ not is_state('input_select.heating_preset', 'off') }}"
   action:
     - service: climate.set_preset_mode
       data:
@@ -233,6 +246,41 @@
               | map(attribute="entity_id") 
               | list 
           }}
+
+- id: set_thermostats_heating_mode
+  alias: Set heating mode on thermostats
+  mode: restart
+  trigger:
+    - platform: state
+      entity_id: 
+        - binary_sensor.is_day_cheap_heating_period
+        - binary_sensor.is_day_heating_time
+        - binary_sensor.is_sleeping
+    - platform: state
+      entity_id: group.residents
+      for: "00:05:00"
+  condition:
+    - condition: template
+      value_template: "{{ not is_state('input_select.heating_preset', 'off') }}"
+  action:
+    - service: input_select.select_option
+      target:
+        entity_id: input_select.thermostats_heating_mode
+      data:
+        option: |
+          {% if 
+            is_state('group.residents', 'not_home') or (
+              is_state('binary_sensor.is_sleeping', 'on') and
+              is_state('binary_sensor.is_day_heating_time', 'off')
+            )
+          %}
+            sleep        
+          {% elif is_state('binary_sensor.is_day_cheap_heating_period', 'on') %}
+            comfort
+          {% else %}
+            home
+          {% endif %}
+
 
 - id: configure_heater_heating_mode_and_preset
   trigger:
@@ -278,7 +326,8 @@
   alias: Calc min heaing temp differnce
   mode: restart
   trigger:
-    - platform: state
+    - id: more_thermostats_enabled
+      platform: state
       entity_id: 
         - climate.master_bedroom
         - climate.master_bathroom_hotfloor
@@ -295,8 +344,8 @@
       attribute: hvac_action
       from: ['idle', 'off']
       to: 'heating'
-      # for: 00:03:00 # time to open/close heating valve
-    - platform: state
+    - id: less_thermostats_enabled
+      platform: state
       entity_id: 
         - climate.master_bedroom
         - climate.master_bathroom_hotfloor
@@ -315,23 +364,36 @@
       to: ['idle', 'off']
     - platform: state
       entity_id: input_boolean.heating_enabled
-      # for: 00:03:00 # time to open/close heating valve
+  variables:
+    # this value is less 0
+    new_min_value: |
+      {% if is_state('input_boolean.heating_enabled', 'off') %}
+        0
+      {% else %}
+        {% set min = namespace(value=0) %}
+        {% for entity in states.climate | selectattr('attributes.location', 'eq', 'house') | list %}
+          {% if entity.attributes.hvac_action == 'heating' %}
+            {% set diff = float(entity.attributes.current_temperature, 0) - float(entity.attributes.temperature, 0) %}
+            {% set min.value = diff if min.value > diff else min.value %}
+          {% endif %}
+        {% endfor %}
+        {{ min.value }}
+      {% endif %}
   action:
+    - if: 
+        - alias: thermostats change and temp different is bigger
+          condition: template
+          value_template: |
+            {{ trigger.id in ['more_thermostats_enabled', 'less_thermostats_enabled'] and
+              float(new_min_value, 0) < float(states('input_number.min_heating_temp_diff'), 0) 
+            }}
+      then:
+        - alias: Wait for valves on collector to change their state
+          delay:
+            seconds: 180
     - service: input_number.set_value
       data:
-        value: |
-          {% if is_state('input_boolean.heating_enabled', 'off') %}
-            0
-          {% else %}
-            {% set min = namespace(value=0) %}
-            {% for entity in states.climate | selectattr('attributes.location', 'eq', 'house') | list %}
-              {% if entity.attributes.hvac_action == 'heating' %}
-                {% set diff = float(entity.attributes.current_temperature, 0) - float(entity.attributes.temperature, 0) %}
-                {% set min.value = diff if min.value > diff else min.value %}
-              {% endif %}
-            {% endfor %}
-            {{ min.value }}
-          {% endif %}
+        value: "{{ new_min_value }}"
       target:
         entity_id: input_number.min_heating_temp_diff
 
@@ -669,3 +731,69 @@
     - service: timer.cancel
       target:
         entity_id: timer.main_heater_cycle_count_observation
+
+# - id: open_all_heater_valves_when_all_closed
+#   alias: Open all heater valves when all are closed and heating disabled
+#   trigger:
+#     - platform: state
+#       entity_id: input_boolean.heating_enabled
+#       from: ['off', 'on']
+#       to: ['on', 'off']
+#       variables:
+#         requires_valve_sync: "{{ trigger.to_state.state == 'on' }}"
+#   variables:
+#     valves_states: | 
+#       {% set inhouse_thermostats = states.climate 
+#         | selectattr('attributes.location', 'eq', 'house') 
+#         | list
+#       %}
+#       {% set enabled_thermostats = inhouse_thermostats 
+#         | selectattr('attributes.hvac_action', 'in', ['idle', 'heating'])
+#         | list
+#       %}
+#       {{{
+#         'turn_on': enabled_thermostats 
+#           | map(attribute='name')        
+#           | map('regex_replace', '^', 'switch.heater_valve_')
+#           | list,
+#         'turn_off': inhouse_thermostats
+#           | map(attribute='name')
+#           | reject('in', enabled_thermostats)
+#           | map('regex_replace', '^', 'switch.heater_valve_')
+#           | list
+#       }}}
+#   action:
+#     - if:
+#       - condition: template
+#         value_template: "{{ requires_valve_sync }}"
+#       then:
+#         - if: 
+#           - condition: template
+#             value_template: "{{ valves_states['turn_off'] | count > 0 }}"
+#           then:
+#             - service: switch.turn_off
+#               target:
+#                 entity_id: "{{ valves_states['turn_off'] | list }}"
+#         - if: 
+#           - condition: template
+#             value_template: "{{ valves_states['turn_on'] | count > 0 }}"
+#           then:
+#             - service: switch.turn_on
+#               target:
+#                 entity_id: "{{ valves_states['turn_on'] | list }}"
+#       else:
+#         - service: switch.turn_on
+#           target:
+#             entity_id:
+#               - switch.heater_valve_master_bedroom
+#               - switch.heater_valve_master_bathroom_hotfloor
+#               - switch.heater_valve_cabinet
+#               - switch.heater_valve_kid_small_bedroom
+#               - switch.heater_valve_kid_big_bedroom
+#               - switch.heater_valve_kid_bathroom_hotfloor
+#               - switch.heater_valve_livingroom
+#               - switch.heater_valve_livingroom_hotfloor_table
+#               - switch.heater_valve_livingroom_hotfloor_fireplace
+#               - switch.heater_valve_livingroom_hotfloor_exit
+#               - switch.heater_valve_kitchen_hotfloor
+#               - switch.heater_valve_entrance_room_hotfloor

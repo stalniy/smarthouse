@@ -15,7 +15,6 @@ class DahuaBaseEntity(CoordinatorEntity):
         super().__init__(coordinator)
         self.config_entry = config_entry
         self._coordinator = coordinator
-        self._extra_attributes = dict()
 
     # https://developers.home-assistant.io/docs/entity_registry_index
     @property
@@ -39,8 +38,6 @@ class DahuaBaseEntity(CoordinatorEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         return {
-            **self._extra_attributes,
-            "attribution": ATTRIBUTION,
             "id": str(self._coordinator.data.get("id", self._coordinator.get_channel())),
             "integration": DOMAIN,
         }

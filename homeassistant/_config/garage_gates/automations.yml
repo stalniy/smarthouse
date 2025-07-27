@@ -29,6 +29,11 @@
       variables:
         should_close: true
     - platform: state
+      entity_id: binary_sensor.is_sleeping
+      to: 'on'
+      variables:
+        should_close: true
+    - platform: state
       entity_id: 
         - binary_sensor.is_main_door_unlocked
         - binary_sensor.is_terace_door_unlocked
@@ -230,7 +235,7 @@
     - condition: template
       value_template: |
         {{
-          float(states('sensor.garage_light_sensor_illuminance_lux'), 0) < 100
+          float(states('sensor.garage_light_sensor_illuminance'), 0) < 100
           or not is_turned_on
         }}
   action: 

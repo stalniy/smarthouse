@@ -46,6 +46,7 @@
 #         entity_id: input_boolean.terace_door_open
 
 - id: turn_off_lights_when_not_needed
+  alias: Todo list on leaving home
   trigger:
     - platform: state
       entity_id: group.residents
@@ -74,6 +75,9 @@
         entity_id:
           - light.kid_bathroom
           - light.kitchen_led_light
+    - service: cover.open_cover
+      target:
+        entity_id: cover.terrace_tulle_curtain
         
 
 - id: duplicate_persistent_notification_to_telegram
@@ -182,7 +186,7 @@
 - id: family_wake_up
   trigger:
     - platform: time
-      at: "07:00:00"
+      at: "07:30:00"
   action:
     - event: sleeping_time_end
 
@@ -306,16 +310,23 @@
           Lost Internet at {{ now() }}
 
 - id: close_curtains_when_sleeping
-  alias: Close curtains on sleep
+  alias: Toggle curtains on sleep
   trigger:
-    platform: state
-    entity_id: binary_sensor.is_sleeping
-    to: 'on'
+    - platform: state
+      entity_id: binary_sensor.is_sleeping
+      to: 'on'
+    # - platform: state
+    #   entity_id: binary_sensor.is_sleeping
+    #   to: 'off'
   condition:
     - condition: template
-      value_template: "{{ float(states('sensor.garage_light_sensor_illuminance_lux')) > 500 }}"
+      value_template: |
+        {{ trigger.to_state.state == 'off' or 
+          float(states('sensor.garage_light_sensor_illuminance')) > 400 or
+          3 <= now().month <= 9
+        }}
   action:
-    - service: cover.close_cover
+    - service_template: "cover.{{ 'close' if trigger.to_state.state == 'on' else 'open' }}_cover"
       target:
         entity_id:
           - cover.kid_big_outside_curtain

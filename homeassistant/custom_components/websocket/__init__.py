@@ -17,7 +17,8 @@ from homeassistant.helpers.template import Template
 
 from aiohttp import ClientError, ClientResponseError, ClientSession, TCPConnector
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import CALLBACK_TYPE, Config, HomeAssistant, EventOrigin, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, EventOrigin, callback
+from homeassistant.core_config import Config
 from homeassistant.exceptions import ConfigEntryNotReady, PlatformNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EVENT_HOMEASSISTANT_START
