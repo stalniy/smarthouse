@@ -83,6 +83,7 @@
       value_template: |
         {{ 
           force_clean is defined and force_clean or
+          trigger.platform is none or
           as_datetime(states('input_datetime.last_cleaned_at')).strftime('%Y-%m-%d') != utcnow().strftime("%Y-%m-%d")
           and now().strftime('%a') != 'Sun'
         }}

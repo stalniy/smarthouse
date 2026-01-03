@@ -1,0 +1,51 @@
+automation:
+  - id: flush_toilets
+    alias: Flush toilets when not home
+    trigger:
+      platform: time
+      at:
+        - '07:00:00'
+        #- '21:00:00'
+    condition:
+      - condition: template
+        value_template: "{{ is_state('group.residents', 'not_home') }}"
+    action:
+      - action: switch.toggle
+        target:
+          entity_id: 
+            - switch.master_bathroom_flush_toilet
+            - switch.kid_bathroom_flush_toilet
+    #  - action: script.flush_toilet
+    #    data:
+    #      entity_id: switch.master_bathroom_flush_toilet
+    #  - action: script.flush_toilet
+    #    data:
+    #      entity_id: switch.kid_bathroom_flush_toilet
+
+script:
+  flush_toilet:
+    alias: Flush toilet
+    fields:
+      entity_id:
+        required: true
+        selector:
+          entity:
+            multiple: false
+            filter:
+              domain: switch
+        name: Toilet Switch
+        description: Entity ID of the toilet switch
+        example: switch.master_bathroom_flush_toilet
+    mode: single
+    sequence:
+      - service: switch.turn_on
+        target:
+          entity_id: "{{ entity_id }}"
+      - delay: '00:00:07'
+      - service: switch.turn_off
+        target:
+          entity_id: "{{ entity_id }}"
+      - delay: '00:00:02'
+      - service: switch.turn_off
+        target:
+          entity_id: "{{ entity_id }}"
