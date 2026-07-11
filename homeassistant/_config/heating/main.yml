@@ -16,7 +16,7 @@ homeassistant:
       mode: slider
     climate.master_bedroom:
       location: house
-      heater_type: radiator 
+      heater_type: radiator
       heater_importance: high
     climate.master_bathroom_hotfloor:
       heater_type: hotfloor
@@ -56,7 +56,7 @@ homeassistant:
     climate.entrance_room_hotfloor:
       heater_type: hotfloor
       location: house
-input_number: 
+input_number:
   main_heater_storage_temp_desired:
     name: Бажана темп. ГВС
     min: 35
@@ -65,19 +65,27 @@ input_number:
     icon: mdi:thermometer-water
     unit_of_measurement: °C
   min_heating_temp_diff:
-    name: Мін. різниця температур повітря в кімнатах 
+    name: Мін. різниця температур повітря в кімнатах
     unit_of_measurement: °C
     icon: mdi:thermometer
     min: -30
     max: 30
+  main_heater_bias:
+    name: Main heater bias
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+    min: -20
+    max: 20
+    step: 0.5
+    initial: 0
 
-input_datetime: 
+input_datetime:
   disable_hot_floor_pump_at:
     name: Час вимкнення насосу ТП
     icon: mdi:clock
     has_date: true
     has_time: true
-  disable_hot_water_pump_at: 
+  disable_hot_water_pump_at:
     name: Час вимкнення насосу ГВП
     icon: mdi:clock
     has_date: true
@@ -108,10 +116,11 @@ input_select:
       - sleep
       - comfort
       - home
+      - away
 input_boolean:
   heating_enabled:
     name: Включити опалення
-  hwc_enabled: 
+  hwc_enabled:
     name: Включити ГВС
   is_main_heater_connected_to_solar:
     name: "Котел на СЕС"
@@ -151,11 +160,11 @@ template:
       icon: mdi:alert-octagram
       state: |
         {% set sensors = [
-          states('sensor.ebusd_bai_currenterror_error'), 
-          states('sensor.ebusd_bai_currenterror_error_2'), 
-          states('sensor.ebusd_bai_currenterror_error_3'), 
-          states('sensor.ebusd_bai_currenterror_error_4'), 
-          states('sensor.ebusd_bai_currenterror_error_5') 
+          states('sensor.ebusd_bai_currenterror_error'),
+          states('sensor.ebusd_bai_currenterror_error_2'),
+          states('sensor.ebusd_bai_currenterror_error_3'),
+          states('sensor.ebusd_bai_currenterror_error_4'),
+          states('sensor.ebusd_bai_currenterror_error_5')
         ] %}
         {% set result = sensors
           | reject('eq', 'None')
@@ -164,14 +173,52 @@ template:
           | join(',\n')
         %}
         {{ 'none' if result == '' else result }}
-  - binary_sensor: 
+    - name: house_radiators_heating_load_factor
+      state: |
+        {% set requires_heating_count =
+          states.climate
+            | selectattr('attributes.location', 'eq', 'house')
+            | selectattr('attributes.heater_type', 'eq', 'radiator')
+            | map(attribute='attributes.hvac_action')
+            | select('eq', 'heating')
+            | list
+            | count
+        %}
+        {% set total_count =
+          states.climate
+            | selectattr('attributes.location', 'eq', 'house')
+            | selectattr('attributes.heater_type', 'eq', 'radiator')
+            | list
+            | count
+        %}
+        {{ requires_heating_count / total_count }}
+    - name: house_hotfloor_heating_load_factor
+      state: |
+        {% set requires_heating_count =
+          states.climate
+            | selectattr('attributes.location', 'eq', 'house')
+            | selectattr('attributes.heater_type', 'eq', 'hotfloor')
+            | map(attribute='attributes.hvac_action')
+            | select('eq', 'heating')
+            | list
+            | count
+        %}
+        {% set total_count =
+          states.climate
+            | selectattr('attributes.location', 'eq', 'house')
+            | selectattr('attributes.heater_type', 'eq', 'hotfloor')
+            | list
+            | count
+        %}
+        {{ requires_heating_count / total_count }}
+  - binary_sensor:
     - name: is_day_cheap_heating_period
       state: "{{ is_state('binary_sensor.is_cheap_grid_energy_period', 'on') and is_state('binary_sensor.is_day_heating_time', 'on') }}"
     - name: is_hot_floor_valves_open
       state: |
-        {% set thermostats_heating = states.climate 
+        {% set thermostats_heating = states.climate
           | selectattr('attributes.location', 'eq', 'house')
-          | selectattr('attributes.heater_type', 'eq', 'hotfloor') 
+          | selectattr('attributes.heater_type', 'eq', 'hotfloor')
           | selectattr('attributes.hvac_action', 'eq', 'heating')
           | list
         %}
@@ -179,9 +226,9 @@ template:
         {{ thermostats_heating | count > 0 }}
     - name: is_radiator_valves_open
       state: |
-        {% set thermostats_heating = states.climate 
+        {% set thermostats_heating = states.climate
           | selectattr('attributes.location', 'eq', 'house')
-          | selectattr('attributes.heater_type', 'eq', 'radiator') 
+          | selectattr('attributes.heater_type', 'eq', 'radiator')
           | selectattr('attributes.hvac_action', 'eq', 'heating')
           | list
         %}
@@ -190,7 +237,7 @@ template:
     - name: requires_heating_in_house
       state: |
         {{
-          (states.climate 
+          (states.climate
             | selectattr('attributes.location', 'eq', 'house')
             | map(attribute='attributes.hvac_action')
             | select('eq', 'heating')
@@ -198,19 +245,19 @@ template:
         }}
     - name: heating_only_hotfloor_in_house
       state: |
-        {% set thermostats_heating = states.climate 
+        {% set thermostats_heating = states.climate
           | selectattr('attributes.location', 'eq', 'house')
           | selectattr('attributes.hvac_action', 'eq', 'heating')
           | list
         %}
         {{
-          (thermostats_heating 
-            | selectattr('attributes.heater_type', 'eq', 'hotfloor') 
-            | list 
+          (thermostats_heating
+            | selectattr('attributes.heater_type', 'eq', 'hotfloor')
+            | list
             | count) == (thermostats_heating | count)
         }}
     - name: fireplace_heating_enabled
-      state: "{{ float(states('sensor.fireplace_fan_power'), 0) > 0 }}"  
+      state: "{{ float(states('sensor.fireplace_fan_power'), 0) > 0 }}"
     - name: hot_floor_pump_required
       state: |
         {{
@@ -247,7 +294,7 @@ template:
       state_class: measurement
       state: >-
         {{ float(states('sensor.main_heater_current_power'), 0) }}
-      attributes: 
+      attributes:
         triggered_at: "{{ now() }}"
   - trigger:
     - platform: time_pattern
@@ -291,7 +338,7 @@ template:
       state: |
         {% set grid_power_live = float(states('sensor.lux_power_from_grid_live'), 0)  %}
         {% set current_month = now().month %}
-        
+
         {% if 4 <= current_month < 10 %}
           {{ grid_power_live == 0 and is_state('binary_sensor.lux_at_min_battery_level', 'off') }}
         {% elif 10 <= current_month <= 11 %}
@@ -299,7 +346,7 @@ template:
         {% else %}
           {{ grid_power_live <= 1500 }}
         {% endif %}
- 
+
 
 sensor:
   - platform: integration
@@ -318,12 +365,13 @@ sensor:
       - sensor.master_wardrobe_climate_temperature
       - sensor.living_room_climate_temperature
       - sensor.entrance_room_climate_temperature
-  - platform: derivative
-    source: input_number.min_heating_temp_diff
-    name: house_min_heating_teamp_diff_rate
-    round: 1
-    unit_time: min
-    time_window: "00:05:00"
+  - platform: history_stats
+    name: main_heater_off_cycle_count
+    entity_id: binary_sensor.ebusd_bai_flame
+    state: "off"
+    type: count
+    start: "{{ now() - timedelta(minutes=15) }}"
+    end: "{{ now() }}"
 
 climate:
   - platform: generic_thermostat
@@ -484,13 +532,3 @@ switch:
           service: script.toggle_hwc
           data:
             state: false
-
-counter:
-  main_heater_cycle_count:
-    name:  К-сть включень котла при поточні температурі теплоносія (оновлюється раз в декілька хв)
-    initial: 0
-    step: 1
-
-timer:
-  main_heater_cycle_count_observation:
-    duration: "00:30:00"

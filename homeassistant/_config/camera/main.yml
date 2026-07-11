@@ -15,13 +15,14 @@ automation:
           action: Start
           Code: CrossRegionDetection
     variables:
-      photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+      photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg"
       base_entity_id: >-
         {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}
     condition:
       - condition: template
         value_template: "{{ is_state('group.residents', 'not_home') }}"
     action:
+      - action: shell_command.cleanup_old_snapshots
       - service: camera.snapshot
         target:
           entity_id: "camera.{{ base_entity_id }}_sub"
@@ -49,21 +50,21 @@ automation:
       event_type: dahua_event_received
     condition:
       - condition: template
-        value_template: | 
-          {{ 
+        value_template: |
+          {{
             trigger.event.data.Code not in [
-              'CrossLineDetection', 
+              'CrossLineDetection',
               'CrossRegionDetection',
               'VideoMotion',
               'SmartMotionHuman',
               'SmartMotionVehicle'
-            ] 
+            ]
           }}
     action:
       - event: important_home_event
         event_data:
           message: |
-            Подія з камери {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}: 
+            Подія з камери {{ trigger.event.data.DeviceName | replace(' ', '_') | lower }}:
             {{ trigger.event.data.Code }}
 
   - id: proxy_dahua_cross_line_events
@@ -80,7 +81,7 @@ automation:
         event: "{{ trigger.event.data.data }}"
     action:
       - event: yard_crossed_line
-        event_data: 
+        event_data:
           name: "{{ event.Name }}"
           direction: "{{ event.Direction if 'Direction' in event else 'None' }}"
           object_type: "{{ event.Object['ObjectType'] }}"
@@ -99,7 +100,7 @@ automation:
         event: "{{ trigger.event.data.data }}"
     action:
       - event: yard_crossed_region
-        event_data: 
+        event_data:
           name: "{{ event.Name }}"
           direction: "{{ event.Direction if 'Direction' in event else 'None' }}"
           object_type: "{{ event.Object['ObjectType'] }}"
@@ -116,7 +117,7 @@ automation:
         object_type: Human
         direction: LeftToRight
     variables:
-      photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg" 
+      photo_path: "/tmp/snapshots/{{ now().timestamp() }}.jpg"
     condition:
       - condition: state
         entity_id: group.residents
@@ -139,4 +140,3 @@ automation:
         data:
           message: Прийшли гості
           media_player_entity_id: media_player.vlc_telnet
-

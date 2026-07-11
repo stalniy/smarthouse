@@ -35,14 +35,24 @@ automation:
         target:
           entity_id: input_boolean.skip_irrigation_today
 
+  - id: irrigation_switch_sync
+    alias: Sync irrigation switch with input boolean
+    trigger:
+      - platform: state
+        entity_id: input_boolean.skip_irrigation_today
+    action:
+      - service: switch.turn_{{ 'off' if is_state('input_boolean.skip_irrigation_today', 'on') else 'on' }}
+        target:
+          entity_id: switch.irrigation_unlimited
+
 irrigation_unlimited:
   controllers:
-    check_back:
-      delay: 3
-      retries: 100
+    queue_manual: true
     all_zones_config:
-      show:
-        timeline: true
+      allow_manual: true
+      check_back:
+        delay: 3
+        retries: 50
     zones:
       - name: "Near garage"
         zone_id: near_garage
@@ -57,26 +67,26 @@ irrigation_unlimited:
         zone_id: back_yard
         entity_id: "switch.watering_back_yard"
     sequences:
-      - name: "Sunrise"
+      - name: "Evening"
         schedules:
-        - name: "Sunrise"
-          time:
-            sun: "sunrise"
-            after: "00:30:00"
+        - time: "19:00:00"
+          weekday: [mon, wed, fri]
         zones:
         - zone_id: near_garage
-          duration: "00:15:00"
+          duration: "00:20:00"
         - zone_id: back_yard
-          duration: "00:15:00"
-      - name: "Sunset"
+          duration: "00:20:00"
+      - name: "Morning trees"
         schedules:
-        - name: "Sunset"
-          day: "odd"
-          time:
-            sun: "sunset"
-            before: "02:00:00"
+        - time: "05:30:00"
+          weekday: [mon, fri]
         zones:
         - zone_id: trees
           duration: "00:15:00"
+      - name: "Morning beds"
+        schedules:
+        - time: "05:30:00"
+          weekday: [tue, sat]
+        zones:
         - zone_id: beds_toilet
           duration: "00:20:00"

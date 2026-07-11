@@ -10,6 +10,14 @@ frontend:
 tts:
   - platform: google_translate
 
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.16.0.0/12
+
+shell_command:
+  cleanup_old_snapshots: "find /tmp/snapshots -type f -name '*.jpg' -mmin +5 -delete"
+
 automation: !include automations.yaml
 
 script: !include scripts.yaml
@@ -76,6 +84,7 @@ homeassistant:
     camera: !include _config/camera/main.yml
     irrigation: !include _config/irrigation/main.yml
     ventillation_basement: !include _config/ventillation_basement/main.yml
+    maintanance: !include _config/maintanance/main.yml
 
 python_script:
 ffmpeg:

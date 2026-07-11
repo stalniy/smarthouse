@@ -1,4 +1,4 @@
-- id: define_energy_tariffs  
+- id: define_energy_tariffs
   alias: Select electricity tariff
   trigger:
     - platform: state
@@ -9,7 +9,7 @@
   action:
     - service: select.select_option
       target:
-        entity_id: 
+        entity_id:
           - select.monthly_energy
       data:
         option: "{{ states('sensor.energy_tariff') }}"
@@ -23,7 +23,7 @@
       id: monthly_report
     - platform: event
       event_type: external_command
-      event_data: 
+      event_data:
         command: /energy_summary
       id: current_report
   condition:
@@ -38,16 +38,16 @@
             {{"\U0001F4C5"}} Новий комунальний місяць
           {% else %}
             {{"\U0001F4C5"}} {{ now().strftime("%H:%M:%S %d.%m.%Y") }}
-          {% endif %}  
+          {% endif %}
           *Імпортовано*:
           {{"\U000026A1"}} Всього - {{ states('sensor.monthly_energy_total') }} КВт/год ({{ states('sensor.monthly_energy_total_cost') }} грн)
           {{"\U00002600"}} День - {{ states('sensor.monthly_energy_day') }} КВт/год ({{ states('sensor.monthly_energy_day_cost') }} грн)
           {{"\U0001F31A"}} Ніч - {{ states('sensor.monthly_energy_night') }} КВт/год ({{ states('sensor.monthly_energy_night_cost') }} грн)
 
 - id: notify_when_main_power_lost
-  alias: Notify when grid power lost
+  alias: Notify grid power status
   mode: restart
-  trigger:  
+  trigger:
     # - platform: state
     #   entity_id: binary_sensor.has_connection_to_main
     #   from: 'off'
@@ -62,10 +62,10 @@
       event_type: external_command
       event_data:
         command: /energy_main_state
-  action: 
+  action:
     - event: important_home_event
       event_data:
-        message: | 
+        message: |
           {% if is_state('binary_sensor.has_connection_to_main', 'on') %}
             💡 Main electricity available.
           {% else %}
@@ -78,7 +78,7 @@
 
 - id: toggle_washing_machine_power_reservation
   alias: Toggle washing machine power reservation
-  trigger: 
+  trigger:
     - platform: numeric_state
       entity_id: sensor.washing_machine_power
       above: 1
@@ -99,4 +99,36 @@
       target:
         entity_id: input_boolean.washing_machine_power_reservation
 
-      
+
+- id: auto_turn_on_fridge
+  alias: Auto turn on fridge when grid is on or on low battery
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.has_connection_to_main
+      to: 'on'
+    - platform: numeric_state
+      entity_id: sensor.lux_battery
+      below: 17
+  condition:
+    - condition: template
+      value_template: >-
+        {{ is_state('switch.fridge', 'off') }}
+  action:
+    - service: switch.turn_on
+      target:
+        entity_id: switch.fridge
+
+- id: auto_turn_on_cameras
+  alias: Auto turn on cameras when grid is on
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.has_connection_to_main
+      to: 'on'
+  condition:
+    - condition: template
+      value_template: >-
+        {{ is_state('switch.cameras_outside_power', 'off') }}
+  action:
+    - service: switch.turn_on
+      target:
+        entity_id: switch.cameras_outside_power

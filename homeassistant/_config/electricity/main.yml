@@ -10,15 +10,21 @@ utility_meter:
     tariffs:
       - day
       - night
+  total_energy:
+    source: sensor.power_consumption_energy
+    name: Total Energy
+    tariffs:
+      - day
+      - night
 
 input_number:
-  energy_consumption_day_cost: 
+  energy_consumption_day_cost:
     name: Cost per Kw/h during day
     unit_of_measurement: UAH
     mode: box
     min: 0
     max: 100
-  energy_consumption_night_cost: 
+  energy_consumption_night_cost:
     name: Cost per Kw/h during night
     unit_of_measurement: UAH
     mode: box
@@ -33,20 +39,20 @@ template:
   - sensor:
     - name: monthly_energy_day_cost
       state: |
-        {{ 
+        {{
           (states('sensor.monthly_energy_day') | float * states('input_number.energy_consumption_day_cost') | float) | round(2)
         }}
       unit_of_measurement: UAH
     - name: monthly_energy_night_cost
       state: |
-        {{ 
+        {{
           (states('sensor.monthly_energy_night') | float * states('input_number.energy_consumption_night_cost') | float) | round(2)
         }}
       unit_of_measurement: UAH
     - name: monthly_energy_total
       state: |
         {{
-          states('sensor.monthly_energy_day') | float + 
+          states('sensor.monthly_energy_day') | float +
           states('sensor.monthly_energy_night') | float
         }}
       unit_of_measurement: kW/h
@@ -65,7 +71,7 @@ template:
         {% endif %}
   - trigger:
       - platform: time
-        at: 
+        at:
           - '07:00:00'
           - 07:05:00
           - 08:00:00
@@ -95,7 +101,7 @@ template:
       attributes:
         start_time: "23:00:00"
         end_time: "06:55:00"
-    
+
   - trigger:
     - platform: time_pattern
       minutes: "/5"
@@ -106,15 +112,15 @@ template:
         - sensor.power_consumption_voltage_z
     binary_sensor:
     - name: has_connection_to_main
-      state: | 
+      state: |
         {% set voltage_states = [
           states.sensor.power_consumption_voltage_x,
           states.sensor.power_consumption_voltage_y,
           states.sensor.power_consumption_voltage_z
         ]
         %}
-        {% set is_changed_recently = voltage_states 
-          | map(attribute='last_changed') 
+        {% set is_changed_recently = voltage_states
+          | map(attribute='last_changed')
           | select('>=', now() - timedelta(seconds=10))
           | list
           | count > 0
@@ -122,18 +128,18 @@ template:
         {% set is_voltage_usable = voltage_states
           | map(attribute='state')
           | map('float', 0)
-          | select('<=', 243) 
-          | select('>=', 198) 
-          | list 
+          | select('<=', 250)
+          | select('>=', 192)
+          | list
           | count > 0
         %}
-        
+
         {{ is_changed_recently and is_voltage_usable }}
 
   - binary_sensor:
       - name: inverter_connected_to_grid
         state: |
-          {{ 
+          {{
             states.sensor.power_consumption_voltage_y.last_changed >= now() - timedelta(seconds=10) and
             float(states('sensor.lux_grid_voltage_live'), 0) > 0
           }}

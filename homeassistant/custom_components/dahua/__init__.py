@@ -108,6 +108,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         # The client used to communicate with Dahua devices
         self.client: DahuaClient = DahuaClient(username, password, address, port, rtsp_port, self._session)
 
+        self._hass = hass
         self.platforms = []
         self.initialized = False
         self.model = ""
@@ -202,7 +203,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.warning("Event streaming task failed, restarting: %s", ex)
             
             _LOGGER.debug("Starting event streaming task")
-            self.dahua_event_streaming_task = asyncio.create_task(self.async_start_event_streaming())
+            self.dahua_event_streaming_task = self._hass.loop.create_task(self.async_start_event_streaming())
 
     async def async_start_vto_event_listener(self):
         """ Starts the event listeners for doorbells (VTO). This will not work for IP cameras"""

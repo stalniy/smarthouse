@@ -7,8 +7,6 @@ services:
       - /home/homeman/smarthome/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
-    tmpfs:
-      - /tmp/snapshots
     restart: unless-stopped
     privileged: true
     network_mode: host
@@ -115,7 +113,7 @@ services:
   signal-cli-rest-api:
     container_name: signal-rest-api
     restart: unless-stopped
-    image: bbernhard/signal-cli-rest-api:0.93
+    image: bbernhard/signal-cli-rest-api:0.98
     environment:
       - MODE=json-rpc #supported modes: json-rpc, native, normal. json-prc is recommended for speed
     ports:
@@ -219,3 +217,24 @@ services:
   #     - /dev/snd:/dev/snd
   #   command: --user-profiles /profiles --profile en
   #   network_mode: host
+
+  reverse-proxy:
+    container_name: reverse-proxy
+    image: lscr.io/linuxserver/swag:5.6.0
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Kyiv
+      - URL=$CERT_DOMAIN_NAME
+      - SUBDOMAINS=
+      - VALIDATION=dns
+      - DNSPLUGIN=duckdns
+      - EMAIL=$CERT_EMAIL
+      - STAGING=false
+      - DISABLE_F2B=true
+    volumes:
+      - ./swag:/config
+    ports:
+      - 443:443
+      - 80:80

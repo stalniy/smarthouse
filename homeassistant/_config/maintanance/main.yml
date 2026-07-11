@@ -8,44 +8,82 @@ automation:
         #- '21:00:00'
     condition:
       - condition: template
-        value_template: "{{ is_state('group.residents', 'not_home') }}"
+        value_template: "{{ is_state('group.residents', 'not_home') and is_state('switch.water_pump', 'on') }}"
     action:
-      - action: switch.toggle
-        target:
-          entity_id: 
-            - switch.master_bathroom_flush_toilet
-            - switch.kid_bathroom_flush_toilet
-    #  - action: script.flush_toilet
-    #    data:
-    #      entity_id: switch.master_bathroom_flush_toilet
-    #  - action: script.flush_toilet
-    #    data:
-    #      entity_id: switch.kid_bathroom_flush_toilet
+      - action: script.flush_toilet
+        data:
+          entity_id: switch.master_bathroom_flush_toilet
+        response_variable: master_result
+      - condition: template
+        value_template: "{{ is_state('switch.water_pump', 'on') }}"
+      - action: script.flush_toilet
+        data:
+          entity_id: switch.kid_bathroom_flush_toilet
+        response_variable: kid_result
+
+template:
+  - binary_sensor:
+    - name: water_pump_used
+      state: "{{ float(states('sensor.water_pump_power'), 0) > 500 }}"
 
 script:
   flush_toilet:
     alias: Flush toilet
     fields:
       entity_id:
+        name: Flush toilet switch entity ID
         required: true
         selector:
           entity:
-            multiple: false
-            filter:
-              domain: switch
-        name: Toilet Switch
-        description: Entity ID of the toilet switch
-        example: switch.master_bathroom_flush_toilet
-    mode: single
+            domain: switch
     sequence:
-      - service: switch.turn_on
-        target:
-          entity_id: "{{ entity_id }}"
-      - delay: '00:00:07'
-      - service: switch.turn_off
-        target:
-          entity_id: "{{ entity_id }}"
-      - delay: '00:00:02'
-      - service: switch.turn_off
-        target:
-          entity_id: "{{ entity_id }}"
+      - repeat:
+          count: 3
+          sequence:
+          - action: switch.toggle
+            target:
+              entity_id: "{{ entity_id }}"
+          - wait_template: "{{ is_state('binary_sensor.water_pump_used', 'on') }}"
+            timeout: "00:08:00"
+            continue_on_timeout: true
+          - choose:
+            - conditions: "{{ not wait.completed }}"
+              sequence:
+                - stop: "No pump start detected"
+          # otherwise wait for pump to stop filling accumulator (finishes in ~1min)
+          - wait_template: "{{ is_state('binary_sensor.water_pump_used', 'off') }}"
+            timeout: "00:02:00"
+            continue_on_timeout: true
+          - choose:
+              # should not happen but pump hasn't filled accumulator in time
+              - conditions: "{{ not wait.completed }}"
+                sequence:
+                  - action: switch.turn_off
+                    target:
+                      entity_id: switch.water_pump
+                  - action: persistent_notification.create
+                    data:
+                      title: ⚠ - Warning!
+                      message: >
+                        Pump hasn't filled accumulator in time. Turning off pump.
+                  - stop: "Pump hasn't filled accumulator in time. Turning off pump."
+          # wait for the 2nd pump start (indicates that fingerbot is stuck)
+          - wait_template: "{{ is_state('binary_sensor.water_pump_used', 'on') }}"
+            timeout: "00:08:00"
+            continue_on_timeout: true
+          - choose:
+              - conditions: "{{ not wait.completed }}"
+                sequence:
+                  - stop: "OK (no second refill)"
+      - if:
+        - condition: template
+          value_template: "{{ is_state('binary_sensor.water_pump_used', 'on') }}"
+        then:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.water_pump
+          - action: persistent_notification.create
+            data:
+              title: ⚠ - Warning!
+              message: >
+                Couldn't recover from stuck fingerbot ({{ entity_id}}). Turning off pump.

@@ -142,18 +142,18 @@ script:
       current_mop_mode: "{{ mop_mode if mop_mode is defined else 'custom' }}"
       current_mop_intensity: "{{ mop_intensity if mop_intensity is defined else 'custom' }}"
     sequence:
-      - service: system_log.write
-        data:
-          level: error
-          message: wait before starting cleaning {{ rooms | to_json }}
+      # - service: system_log.write
+      #   data:
+      #     level: error
+      #     message: wait before starting cleaning {{ rooms | to_json }}
       - alias: Очікуємо поки робот завершить прибирання
         wait_template: |
           {{ states('vacuum.bruce') in start_on_vacuum_state }}
         timeout: "05:00:00"
-      - service: system_log.write
-        data:
-          level: error
-          message: start cleaning {{ rooms | to_json }}
+      # - service: system_log.write
+      #   data:
+      #     level: error
+      #     message: start cleaning {{ rooms | to_json }}
       - if: 
           - condition: template
             value_template: "{{ wait.completed }}"

@@ -1,45 +1,22 @@
 temp_diff = float(hass.states.get('input_number.min_heating_temp_diff').state)
 MIN_TEMP = 35
+ACTUATOR_CYCLE_TIME = 180
+MAX_LIFT = 10.0 # max lift temperature in C
 
-def suggested_temp_for_temp_diff():
-    if temp_diff <= -2.5:
-        return 60
-    elif temp_diff <= -1.5:
-        return 50
-    elif temp_diff <= -0.5:
-        return 40
-    else:
-        return MIN_TEMP
-    
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
+
 def is_heater_just_enabled():
     return (dt_util.now() - hass.states.get('input_boolean.heating_enabled').last_changed).seconds <= 60
 
 def auto_calc_heating_flow_temp():
-    is_heating_only_hotfloor = hass.states.get('binary_sensor.heating_only_hotfloor_in_house').state == 'on'
+    hotfloor_base_temp = MIN_TEMP + -1 * temp_diff * MAX_LIFT * 0.2 * float(hass.states.get('sensor.house_hotfloor_heating_load_factor').state)
+    hotfloor_temp = clamp(hotfloor_base_temp, MIN_TEMP, 40)
 
-    if is_heating_only_hotfloor:
-        return 40 if temp_diff < -2 else MIN_TEMP
-    
-    # if is_heater_just_enabled():
-    return suggested_temp_for_temp_diff()
-    
-    # current_temp = float(hass.states.get('sensor.ebusd_bai_flowtempdesired_temp').state) or MIN_TEMP
-    # main_heater_flame_off_counter = float(hass.states.get('counter.main_heater_cycle_count').state) or 0
+    radiators_base_temp = MIN_TEMP + 5 + -1 * temp_diff * MAX_LIFT * float(hass.states.get('sensor.house_radiators_heating_load_factor').state) + float(hass.states.get('input_number.main_heater_bias').state)
+    radiators_temp = clamp(radiators_base_temp, MIN_TEMP + 5, 60)
 
-    # if main_heater_flame_off_counter >= 2:
-    #     # too often heater was toggled, temp is too high
-    #     return max(MIN_TEMP, current_temp - 5)
-
-    ## checks for temperature change happens too often, each time this script is called
-    ## but for not it's called every 2 mins, 
-    ## expecting that temperature in rooms will change in 2 mins is insane
-
-    #house_min_heating_temp_diff_rate = float(hass.states.get('sensor.house_min_heating_teamp_diff_rate').state) or 0
-    # if house_min_heating_temp_diff_rate < 0.5:
-    #     # less than 0.5C per 5 min => slow heating, need to increase temp
-    #     return min(current_temp + 1, 60)
-    
-    # return current_temp
+    return max(hotfloor_temp, radiators_temp)
 
 
 def calc_heating_flow_temp():
@@ -54,24 +31,24 @@ def calc_heating_flow_temp():
         return 60
     return 40
 
-can_heat = hass.states.get('input_boolean.heating_enabled').state == "on" and \
-    temp_diff < 0 and ( \
-        hass.states.get('binary_sensor.is_radiator_valves_open').state == 'on' or \
-        hass.states.get('binary_sensor.is_hot_floor_valves_open').state == 'on' \
-    )
-
-heating_disabled = "0" if can_heat else "1"
+radiator_valves_open_state = hass.states.get('binary_sensor.is_radiator_valves_open')
+hot_floor_valves_open_state = hass.states.get('binary_sensor.is_hot_floor_valves_open')
+has_demand = temp_diff < 0 and ( \
+    radiator_valves_open_state.state == 'on' and (dt_util.now() - radiator_valves_open_state.last_changed).total_seconds() > ACTUATOR_CYCLE_TIME or \
+    hot_floor_valves_open_state.state == 'on' and (dt_util.now() - hot_floor_valves_open_state.last_changed).total_seconds() > ACTUATOR_CYCLE_TIME \
+)
+heating_disabled = "0" if hass.states.get('input_boolean.heating_enabled').state == "on" and has_demand else "1"
 heating_temp = int(calc_heating_flow_temp())
 hwc_temp_desired = int(float(hass.states.get('input_number.main_heater_storage_temp_desired').state))
 hwc_disabled = "0" if hass.states.get('input_boolean.hwc_enabled').state == "on" else "1"
 
 service_data = {
-    'topic': 'ebusd/bai/SetModeOverride/set', 
-    'qos': 1, 
+    'topic': 'ebusd/bai/SetModeOverride/set',
+    'qos': 1,
     'payload': '0;{};{};-;-;{};0;{};-;0;0;0'.format(
-        heating_temp, 
-        hwc_temp_desired, 
-        heating_disabled, 
+        heating_temp,
+        hwc_temp_desired,
+        heating_disabled,
         hwc_disabled
     )
 }

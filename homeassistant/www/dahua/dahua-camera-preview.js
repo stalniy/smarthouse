@@ -30,10 +30,14 @@ class DahuaCameraPreviewCard extends HTMLElement {
     this.shadowRoot.appendChild(style);
     
     card.header = this.#config.title || '';
+    const wsUrl = location.protocol === 'https:' 
+      ? `wss://${location.hostname}/nvrws/rtspoverwebsocket` 
+      : "";
     card.innerHTML = `
       <div class="card">
         <dahua-player 
           camera-ip="${config.address}"
+          ws-url="${wsUrl}"
           channel="${config.channel}"
           subtype="${this.#subtype}"
           ${this.#config.autoplay ? 'autoplay' : ''}
